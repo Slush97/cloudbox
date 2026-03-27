@@ -28,9 +28,7 @@ class PhotoDetailPage extends ConsumerWidget {
           ),
           IconButton(
             icon: const Icon(Icons.share),
-            onPressed: () => SharePlus.instance.share(
-              ShareParams(uri: Uri.parse(client.originalUrl(photo.id))),
-            ),
+            onPressed: () => Share.share(client.originalUrl(photo.id)),
           ),
         ],
       ),

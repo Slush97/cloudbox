@@ -1,4 +1,5 @@
 pub mod exif;
+pub mod phash;
 pub mod thumbs;
 
 #[derive(Debug, Default)]

@@ -46,7 +46,24 @@ async fn upload(
     let filename = field.file_name().unwrap_or("upload").to_string();
     let data = field.bytes().await?;
 
-    // 1. Write original to storage
+    // 1. Compute perceptual hash and check for duplicates
+    let phash = cloudbox_media::phash::dhash(&data).ok();
+    if let Some(hash) = phash {
+        if let Some(existing) = cloudbox_db::photos::find_duplicate(
+            &state.db,
+            hash,
+            cloudbox_media::phash::DUPLICATE_THRESHOLD,
+        )
+        .await?
+        {
+            return Err(AppError::BadRequest(format!(
+                "duplicate of existing photo {} ({})",
+                existing.id, existing.filename,
+            )));
+        }
+    }
+
+    // 2. Write original to storage
     let id = Uuid::now_v7();
     let ext = std::path::Path::new(&filename)
         .extension()
@@ -57,16 +74,16 @@ async fn upload(
     tokio::fs::create_dir_all(dest.parent().unwrap()).await?;
     tokio::fs::write(&dest, &data).await?;
 
-    // 2. Extract EXIF metadata
+    // 3. Extract EXIF metadata
     let meta = cloudbox_media::exif::extract(&data);
 
-    // 3. Generate thumbnails
+    // 4. Generate thumbnails
     cloudbox_media::thumbs::generate(&data, &state.storage_path, &id).await?;
 
-    // 4. Insert into db
-    let photo = cloudbox_db::photos::insert(&state.db, id, &filename, &storage_key, meta).await?;
+    // 5. Insert into db
+    let photo = cloudbox_db::photos::insert(&state.db, id, &filename, &storage_key, phash, meta).await?;
 
-    // 5. Queue vision processing (CLIP embedding, face detection) — async background
+    // 6. Queue vision processing (CLIP embedding, face detection) — async background
     cloudbox_vision::queue_photo(id, dest);
 
     Ok(Json(photo))

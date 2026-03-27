@@ -11,6 +11,7 @@ CREATE TABLE photos (
     id            UUID PRIMARY KEY,
     filename      TEXT NOT NULL,
     storage_key   TEXT NOT NULL,
+    phash         BIGINT,
     taken_at      TIMESTAMPTZ,
     latitude      DOUBLE PRECISION,
     longitude     DOUBLE PRECISION,
@@ -23,6 +24,7 @@ CREATE TABLE photos (
 
 CREATE INDEX idx_photos_taken_at ON photos (taken_at DESC NULLS LAST);
 CREATE INDEX idx_photos_created_at ON photos (created_at DESC);
+CREATE INDEX idx_photos_phash ON photos (phash) WHERE phash IS NOT NULL;
 
 CREATE TABLE photo_embeddings (
     photo_id       UUID PRIMARY KEY REFERENCES photos(id) ON DELETE CASCADE,

@@ -9,6 +9,7 @@ pub struct Photo {
     pub id: Uuid,
     pub filename: String,
     pub storage_key: String,
+    pub phash: Option<i64>,
     pub taken_at: Option<DateTime<Utc>>,
     pub latitude: Option<f64>,
     pub longitude: Option<f64>,
@@ -19,22 +20,38 @@ pub struct Photo {
     pub created_at: DateTime<Utc>,
 }
 
+/// Check if a visually similar photo already exists (hamming distance <= threshold).
+/// Postgres doesn't have bit_count on bigint natively, so we pull candidate hashes
+/// and check in Rust. With typical photo libraries (<100k), this is fast enough.
+pub async fn find_duplicate(pool: &PgPool, phash: u64, threshold: u32) -> Result<Option<Photo>, sqlx::Error> {
+    let rows: Vec<Photo> = sqlx::query_as("SELECT * FROM photos WHERE phash IS NOT NULL")
+        .fetch_all(pool)
+        .await?;
+
+    Ok(rows.into_iter().find(|p| {
+        let existing = p.phash.unwrap_or(0) as u64;
+        (existing ^ phash).count_ones() <= threshold
+    }))
+}
+
 pub async fn insert(
     pool: &PgPool,
     id: Uuid,
     filename: &str,
     storage_key: &str,
+    phash: Option<u64>,
     meta: Option<PhotoMeta>,
 ) -> Result<Photo, sqlx::Error> {
     let m = meta.unwrap_or_default();
     sqlx::query_as(
-        r#"INSERT INTO photos (id, filename, storage_key, taken_at, latitude, longitude, camera_make, camera_model, width, height)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        r#"INSERT INTO photos (id, filename, storage_key, phash, taken_at, latitude, longitude, camera_make, camera_model, width, height)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
            RETURNING *"#,
     )
     .bind(id)
     .bind(filename)
     .bind(storage_key)
+    .bind(phash.map(|h| h as i64))
     .bind(m.taken_at)
     .bind(m.latitude)
     .bind(m.longitude)

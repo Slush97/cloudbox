@@ -77,7 +77,7 @@ class _FileTile extends ConsumerWidget {
           if (action == 'download') {
             _download(context, ref);
           } else if (action == 'delete') {
-            ref.read(filesProvider.notifier).delete(file.id);
+            _confirmDelete(context, ref);
           }
         },
         itemBuilder: (context) => [
@@ -86,6 +86,29 @@ class _FileTile extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete file?'),
+        content: Text('Permanently delete "${file.filename}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      ref.read(filesProvider.notifier).delete(file.id);
+    }
   }
 
   Future<void> _download(BuildContext context, WidgetRef ref) async {

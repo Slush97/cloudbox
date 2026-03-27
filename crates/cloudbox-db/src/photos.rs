@@ -90,6 +90,14 @@ pub async fn list(pool: &PgPool, cursor: Option<Uuid>, limit: i64) -> Result<Vec
     }
 }
 
+pub async fn delete(pool: &PgPool, id: Uuid) -> Result<(), sqlx::Error> {
+    sqlx::query("DELETE FROM photos WHERE id = $1")
+        .bind(id)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
 pub async fn search_by_embedding(
     pool: &PgPool,
     embedding: &[f32],

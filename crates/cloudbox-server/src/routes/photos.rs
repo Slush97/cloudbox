@@ -1,6 +1,6 @@
 use axum::{
     extract::{Multipart, Path, Query, State},
-    routing::{get, post},
+    routing::{delete, get, post},
     Json, Router,
 };
 use serde::Deserialize;
@@ -14,6 +14,7 @@ pub fn router() -> Router<AppState> {
         .route("/upload", post(upload))
         .route("/{id}", get(get_photo))
         .route("/{id}/thumb/{size}", get(get_thumbnail))
+        .route("/{id}", delete(delete_photo))
         .route("/search", get(search))
         .route("/faces", get(list_face_clusters))
 }
@@ -129,6 +130,30 @@ async fn search(
     let embedding = cloudbox_vision::clip::encode_text(&params.q)?;
     let photos = cloudbox_db::photos::search_by_embedding(&state.db, &embedding, params.limit.unwrap_or(20)).await?;
     Ok(Json(photos))
+}
+
+async fn delete_photo(
+    _claims: Claims,
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+) -> Result<(), AppError> {
+    let photo = cloudbox_db::photos::get(&state.db, id)
+        .await?
+        .ok_or(AppError::NotFound)?;
+
+    // Remove original file
+    let orig_path = std::path::Path::new(&state.storage_path).join(&photo.storage_key);
+    tokio::fs::remove_file(&orig_path).await.ok();
+
+    // Remove thumbnails
+    for size in ["sm", "md", "lg"] {
+        let thumb = format!("{}/thumbs/{id}_{size}.webp", state.storage_path);
+        tokio::fs::remove_file(&thumb).await.ok();
+    }
+
+    // Delete DB row (cascades to photo_embeddings and faces)
+    cloudbox_db::photos::delete(&state.db, id).await?;
+    Ok(())
 }
 
 async fn list_face_clusters(

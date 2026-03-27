@@ -65,6 +65,10 @@ class ApiClient {
     return token != null ? '$url?token=$token' : url;
   }
 
+  Future<void> deletePhoto(String id) async {
+    await _dio.delete<void>('/photos/$id');
+  }
+
   String originalUrl(String photoId) {
     final url = '$baseUrl/api/v1/photos/$photoId';
     return token != null ? '$url?token=$token' : url;

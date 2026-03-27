@@ -34,6 +34,11 @@ class PhotosNotifier extends StateNotifier<AsyncValue<List<Photo>>> {
     state = AsyncValue.data([...current, ...more]);
   }
 
+  Future<void> delete(String id) async {
+    await _client.deletePhoto(id);
+    await load();
+  }
+
   Future<void> upload(Uint8List data, String filename) async {
     await _client.uploadPhoto(data, filename);
     await load();

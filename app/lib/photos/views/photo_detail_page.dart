@@ -6,6 +6,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../core/api/client.dart';
 import '../../core/models/photo.dart';
+import '../providers/photos_provider.dart';
 
 class PhotoDetailPage extends ConsumerWidget {
   const PhotoDetailPage({required this.photo, super.key});
@@ -30,6 +31,10 @@ class PhotoDetailPage extends ConsumerWidget {
             icon: const Icon(Icons.share),
             onPressed: () => Share.share(client.originalUrl(photo.id)),
           ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            onPressed: () => _confirmDelete(context, ref),
+          ),
         ],
       ),
       body: Center(
@@ -44,6 +49,30 @@ class PhotoDetailPage extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete photo?'),
+        content: const Text('This will permanently delete this photo and all associated data.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && context.mounted) {
+      await ref.read(photosProvider.notifier).delete(photo.id);
+      if (context.mounted) Navigator.of(context).pop();
+    }
   }
 
   void _showInfo(BuildContext context) {

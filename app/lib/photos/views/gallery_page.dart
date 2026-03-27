@@ -43,45 +43,54 @@ class GalleryPage extends ConsumerWidget {
   }
 }
 
-class _PhotoGrid extends StatelessWidget {
+class _PhotoGrid extends ConsumerWidget {
   const _PhotoGrid({required this.photos, required this.client});
 
   final List<Photo> photos;
   final ApiClient client;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (photos.isEmpty) {
       return const Center(child: Text('No photos yet. Tap + to upload.'));
     }
 
-    return GridView.builder(
-      padding: const EdgeInsets.all(4),
-      gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: MediaQuery.sizeOf(context).width >= 800 ? 200 : 120,
-        crossAxisSpacing: 4,
-        mainAxisSpacing: 4,
-      ),
-      itemCount: photos.length,
-      itemBuilder: (context, index) {
-        final photo = photos[index];
-        return GestureDetector(
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => PhotoDetailPage(photo: photo),
-            ),
-          ),
-          child: Hero(
-            tag: 'photo_${photo.id}',
-            child: CachedNetworkImage(
-              imageUrl: client.thumbnailUrl(photo.id, size: 'md'),
-              fit: BoxFit.cover,
-              placeholder: (_, __) => Container(color: Colors.grey.shade800),
-              errorWidget: (_, __, ___) => const Icon(Icons.broken_image),
-            ),
-          ),
-        );
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        if (notification.metrics.pixels >=
+            notification.metrics.maxScrollExtent - 200) {
+          ref.read(photosProvider.notifier).loadMore();
+        }
+        return false;
       },
+      child: GridView.builder(
+        padding: const EdgeInsets.all(4),
+        gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: MediaQuery.sizeOf(context).width >= 800 ? 200 : 120,
+          crossAxisSpacing: 4,
+          mainAxisSpacing: 4,
+        ),
+        itemCount: photos.length,
+        itemBuilder: (context, index) {
+          final photo = photos[index];
+          return GestureDetector(
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => PhotoDetailPage(photo: photo),
+              ),
+            ),
+            child: Hero(
+              tag: 'photo_${photo.id}',
+              child: CachedNetworkImage(
+                imageUrl: client.thumbnailUrl(photo.id, size: 'md'),
+                fit: BoxFit.cover,
+                placeholder: (_, __) => Container(color: Colors.grey.shade800),
+                errorWidget: (_, __, ___) => const Icon(Icons.broken_image),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 }

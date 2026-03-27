@@ -14,6 +14,7 @@ class PhotosNotifier extends StateNotifier<AsyncValue<List<Photo>>> {
   PhotosNotifier(this._client) : super(const AsyncValue.loading());
 
   final ApiClient _client;
+  bool _loadingMore = false;
 
   Future<void> load() async {
     try {
@@ -25,13 +26,21 @@ class PhotosNotifier extends StateNotifier<AsyncValue<List<Photo>>> {
   }
 
   Future<void> loadMore() async {
+    if (_loadingMore) return;
     final current = state.valueOrNull ?? [];
     if (current.isEmpty) return;
 
-    final cursor = current.last.id;
-    final data = await _client.listPhotos(cursor: cursor);
-    final more = data.map(Photo.fromJson).toList();
-    state = AsyncValue.data([...current, ...more]);
+    _loadingMore = true;
+    try {
+      final cursor = current.last.id;
+      final data = await _client.listPhotos(cursor: cursor);
+      final more = data.map(Photo.fromJson).toList();
+      if (more.isNotEmpty) {
+        state = AsyncValue.data([...current, ...more]);
+      }
+    } finally {
+      _loadingMore = false;
+    }
   }
 
   Future<void> delete(String id) async {

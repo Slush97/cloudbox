@@ -74,7 +74,7 @@ class _PhotoGrid extends StatelessWidget {
           child: Hero(
             tag: 'photo_${photo.id}',
             child: CachedNetworkImage(
-              imageUrl: client.thumbnailUrl(photo.id, size: 'sm'),
+              imageUrl: client.thumbnailUrl(photo.id, size: 'md'),
               fit: BoxFit.cover,
               placeholder: (_, __) => Container(color: Colors.grey.shade800),
               errorWidget: (_, __, ___) => const Icon(Icons.broken_image),

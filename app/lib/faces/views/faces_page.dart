@@ -42,7 +42,7 @@ class FacesPage extends ConsumerWidget {
                       radius: 48,
                       backgroundImage: cluster.samplePhotoId != null
                           ? CachedNetworkImageProvider(
-                              client.thumbnailUrl(cluster.samplePhotoId!, size: 'sm'),
+                              client.thumbnailUrl(cluster.samplePhotoId!, size: 'md'),
                             )
                           : null,
                       child: cluster.samplePhotoId == null ? const Icon(Icons.face, size: 40) : null,

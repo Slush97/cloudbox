@@ -86,7 +86,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   ),
                 ),
                 child: CachedNetworkImage(
-                  imageUrl: client.thumbnailUrl(photo.id, size: 'sm'),
+                  imageUrl: client.thumbnailUrl(photo.id, size: 'md'),
                   fit: BoxFit.cover,
                 ),
               );

@@ -1,6 +1,12 @@
+import 'dart:io' show File;
+import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../core/api/client.dart';
 import '../../core/models/file_entry.dart';
@@ -29,12 +35,28 @@ class FilesPage extends ConsumerWidget {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // TODO: file picker
-        },
+        onPressed: () => _pickAndUpload(ref),
         child: const Icon(Icons.upload_file),
       ),
     );
+  }
+
+  Future<void> _pickAndUpload(WidgetRef ref) async {
+    final result = await FilePicker.platform.pickFiles(allowMultiple: true);
+    if (result == null) return;
+
+    final notifier = ref.read(filesProvider.notifier);
+    for (final file in result.files) {
+      final bytes = file.bytes ?? (file.path != null ? await _readFile(file.path!) : null);
+      if (bytes != null) {
+        await notifier.upload(bytes, file.name);
+      }
+    }
+  }
+
+  Future<Uint8List> _readFile(String path) async {
+    final file = File(path);
+    return file.readAsBytes();
   }
 }
 
@@ -52,7 +74,9 @@ class _FileTile extends ConsumerWidget {
       subtitle: Text('${file.humanSize}  -  ${dateFormat.format(file.createdAt)}'),
       trailing: PopupMenuButton<String>(
         onSelected: (action) {
-          if (action == 'delete') {
+          if (action == 'download') {
+            _download(context, ref);
+          } else if (action == 'delete') {
             ref.read(filesProvider.notifier).delete(file.id);
           }
         },
@@ -62,6 +86,24 @@ class _FileTile extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _download(BuildContext context, WidgetRef ref) async {
+    final client = ref.read(apiClientProvider);
+
+    try {
+      final dir = await getTemporaryDirectory();
+      final path = '${dir.path}/${file.filename}';
+      await client.downloadFile(file.id, path);
+      if (!context.mounted) return;
+      await Share.shareXFiles([XFile(path)]);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Download failed: $e')),
+        );
+      }
+    }
   }
 
   IconData _iconForFilename(String name) {

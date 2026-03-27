@@ -107,6 +107,10 @@ class ApiClient {
     await _dio.delete<void>('/files/$id');
   }
 
+  Future<void> downloadFile(String fileId, String savePath) async {
+    await _dio.download('/files/$fileId', savePath);
+  }
+
   String fileDownloadUrl(String fileId) {
     return '$baseUrl/api/v1/files/$fileId';
   }

@@ -33,6 +33,7 @@ async fn list_photos(
     Ok(Json(photos))
 }
 
+#[axum::debug_handler]
 async fn upload(
     _claims: Claims,
     State(state): State<AppState>,
@@ -104,9 +105,13 @@ async fn get_thumbnail(
     _claims: Claims,
     State(state): State<AppState>,
     Path((id, size)): Path<(Uuid, String)>,
-) -> Result<Vec<u8>, AppError> {
+) -> Result<([(axum::http::header::HeaderName, &'static str); 1], Vec<u8>), AppError> {
+    if !matches!(size.as_str(), "sm" | "md" | "lg") {
+        return Err(AppError::BadRequest("invalid size; must be sm, md, or lg".into()));
+    }
     let path = format!("{}/thumbs/{id}_{size}.webp", state.storage_path);
-    tokio::fs::read(&path).await.map_err(|_| AppError::NotFound)
+    let bytes = tokio::fs::read(&path).await.map_err(|_| AppError::NotFound)?;
+    Ok(([(axum::http::header::CONTENT_TYPE, "image/webp")], bytes))
 }
 
 #[derive(Deserialize)]

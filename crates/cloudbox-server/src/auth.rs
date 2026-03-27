@@ -32,15 +32,23 @@ impl FromRequestParts<AppState> for Claims {
     type Rejection = AppError;
 
     async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self, Self::Rejection> {
-        let auth_header = parts
+        // Try Authorization header first, fall back to ?token= query param (for image URLs).
+        let token = parts
             .headers
             .get("authorization")
             .and_then(|v| v.to_str().ok())
             .and_then(|v| v.strip_prefix("Bearer "))
+            .map(|s| s.to_string())
+            .or_else(|| {
+                parts.uri.query().and_then(|q| {
+                    q.split('&')
+                        .find_map(|pair| pair.strip_prefix("token=").map(String::from))
+                })
+            })
             .ok_or(AppError::Unauthorized)?;
 
         let token_data = decode::<Claims>(
-            auth_header,
+            &token,
             &DecodingKey::from_secret(state.jwt_secret.as_bytes()),
             &Validation::default(),
         )

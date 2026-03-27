@@ -61,11 +61,13 @@ class ApiClient {
   }
 
   String thumbnailUrl(String photoId, {String size = 'md'}) {
-    return '$baseUrl/api/v1/photos/$photoId/thumb/$size';
+    final url = '$baseUrl/api/v1/photos/$photoId/thumb/$size';
+    return token != null ? '$url?token=$token' : url;
   }
 
   String originalUrl(String photoId) {
-    return '$baseUrl/api/v1/photos/$photoId';
+    final url = '$baseUrl/api/v1/photos/$photoId';
+    return token != null ? '$url?token=$token' : url;
   }
 
   // Search

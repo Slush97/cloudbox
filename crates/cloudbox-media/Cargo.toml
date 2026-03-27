@@ -1,0 +1,17 @@
+[package]
+name = "cloudbox-media"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Image/video processing — thumbnails, EXIF, transcoding"
+
+[dependencies]
+image.workspace = true
+kamadak-exif.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tokio.workspace = true

@@ -1,0 +1,19 @@
+[package]
+name = "cloudbox-sync"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "File storage and sync engine"
+
+[dependencies]
+async-trait = "0.1"
+aws-sdk-s3.workspace = true
+aws-config.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tokio.workspace = true
+serde.workspace = true

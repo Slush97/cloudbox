@@ -28,9 +28,12 @@ class FilesPage extends ConsumerWidget {
           if (list.isEmpty) {
             return const Center(child: Text('No files yet. Tap + to upload.'));
           }
-          return ListView.builder(
-            itemCount: list.length,
-            itemBuilder: (context, index) => _FileTile(file: list[index]),
+          return RefreshIndicator(
+            onRefresh: () => ref.read(filesProvider.notifier).load(),
+            child: ListView.builder(
+              itemCount: list.length,
+              itemBuilder: (context, index) => _FileTile(file: list[index]),
+            ),
           );
         },
       ),

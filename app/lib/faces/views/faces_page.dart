@@ -24,7 +24,9 @@ class FacesPage extends ConsumerWidget {
               child: Text('No faces detected yet.\nUpload photos and the ML pipeline will find them.'),
             );
           }
-          return GridView.builder(
+          return RefreshIndicator(
+            onRefresh: () => ref.read(faceClustersProvider.notifier).load(),
+            child: GridView.builder(
             padding: const EdgeInsets.all(16),
             gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
               maxCrossAxisExtent: 160,
@@ -61,6 +63,7 @@ class FacesPage extends ConsumerWidget {
                 ],
               );
             },
+          ),
           );
         },
       ),

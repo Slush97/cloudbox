@@ -55,15 +55,17 @@ class _PhotoGrid extends ConsumerWidget {
       return const Center(child: Text('No photos yet. Tap + to upload.'));
     }
 
-    return NotificationListener<ScrollNotification>(
-      onNotification: (notification) {
-        if (notification.metrics.pixels >=
-            notification.metrics.maxScrollExtent - 200) {
-          ref.read(photosProvider.notifier).loadMore();
-        }
-        return false;
-      },
-      child: GridView.builder(
+    return RefreshIndicator(
+      onRefresh: () => ref.read(photosProvider.notifier).load(),
+      child: NotificationListener<ScrollNotification>(
+        onNotification: (notification) {
+          if (notification.metrics.pixels >=
+              notification.metrics.maxScrollExtent - 200) {
+            ref.read(photosProvider.notifier).loadMore();
+          }
+          return false;
+        },
+        child: GridView.builder(
         padding: const EdgeInsets.all(4),
         gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
           maxCrossAxisExtent: MediaQuery.sizeOf(context).width >= 800 ? 200 : 120,
@@ -90,6 +92,7 @@ class _PhotoGrid extends ConsumerWidget {
             ),
           );
         },
+        ),
       ),
     );
   }

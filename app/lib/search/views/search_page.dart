@@ -69,28 +69,32 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           if (photos.isEmpty) {
             return const Center(child: Text('No results found.'));
           }
-          return GridView.builder(
-            padding: const EdgeInsets.all(4),
-            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: 200,
-              crossAxisSpacing: 4,
-              mainAxisSpacing: 4,
-            ),
-            itemCount: photos.length,
-            itemBuilder: (context, index) {
-              final photo = photos[index];
-              return GestureDetector(
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => PhotoDetailPage(photo: photo),
+          return RefreshIndicator(
+            onRefresh: () =>
+                ref.read(searchResultsProvider.notifier).search(_controller.text),
+            child: GridView.builder(
+              padding: const EdgeInsets.all(4),
+              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                maxCrossAxisExtent: 200,
+                crossAxisSpacing: 4,
+                mainAxisSpacing: 4,
+              ),
+              itemCount: photos.length,
+              itemBuilder: (context, index) {
+                final photo = photos[index];
+                return GestureDetector(
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => PhotoDetailPage(photo: photo),
+                    ),
                   ),
-                ),
-                child: CachedNetworkImage(
-                  imageUrl: client.thumbnailUrl(photo.id, size: 'md'),
-                  fit: BoxFit.cover,
-                ),
-              );
-            },
+                  child: CachedNetworkImage(
+                    imageUrl: client.thumbnailUrl(photo.id, size: 'md'),
+                    fit: BoxFit.cover,
+                  ),
+                );
+              },
+            ),
           );
         },
       ),

@@ -7,9 +7,13 @@ authors.workspace = true
 license.workspace = true
 description = "ML vision pipeline — CLIP embeddings, face detection/clustering via scry-*"
 
+[features]
+default = []
+ml = ["scry-learn", "scry-llm"]
+
 [dependencies]
-scry-learn.workspace = true
-scry-llm.workspace = true
+scry-learn = { workspace = true, optional = true }
+scry-llm = { workspace = true, optional = true }
 thiserror.workspace = true
 tracing.workspace = true
 uuid.workspace = true

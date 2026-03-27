@@ -11,10 +11,14 @@ description = "Self-hosted cloud API server"
 name = "cloudbox"
 path = "src/main.rs"
 
+[[bin]]
+name = "seed-user"
+path = "src/bin/seed_user.rs"
+
 [dependencies]
 cloudbox-db = { path = "../cloudbox-db" }
 cloudbox-media = { path = "../cloudbox-media" }
-cloudbox-vision = { path = "../cloudbox-vision" }
+cloudbox-vision = { path = "../cloudbox-vision", default-features = false }
 cloudbox-sync = { path = "../cloudbox-sync" }
 
 axum.workspace = true
@@ -31,3 +35,4 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 dotenvy.workspace = true
 anyhow = "1"
+sqlx.workspace = true

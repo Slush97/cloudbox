@@ -8,6 +8,7 @@ license.workspace = true
 description = "Database layer — Postgres via sqlx"
 
 [dependencies]
+argon2.workspace = true
 cloudbox-media = { path = "../cloudbox-media" }
 sqlx.workspace = true
 uuid.workspace = true

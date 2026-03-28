@@ -27,14 +27,7 @@ class AppShell extends StatelessWidget {
                   .toList(),
             ),
             const VerticalDivider(width: 1),
-            Expanded(
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1200),
-                  child: navigationShell,
-                ),
-              ),
-            ),
+            Expanded(child: navigationShell),
           ],
         ),
       );

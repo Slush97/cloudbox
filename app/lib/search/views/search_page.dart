@@ -87,7 +87,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               itemBuilder: (context, index) {
                 final photo = photos[index];
                 return GestureDetector(
-                  onTap: () => Navigator.of(context, rootNavigator: true).push(
+                  onTap: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) => PhotoDetailPage(photo: photo),
                     ),

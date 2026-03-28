@@ -81,16 +81,13 @@ class _PhotoGrid extends ConsumerWidget {
                 builder: (_) => PhotoDetailPage(photo: photo),
               ),
             ),
-            child: Hero(
-              tag: 'photo_${photo.id}',
-              child: CachedNetworkImage(
-                imageUrl: client.thumbnailUrl(photo.id, size: 'md'),
-                fit: BoxFit.cover,
-                placeholder: (_, __) => ColoredBox(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                ),
-                errorWidget: (_, __, ___) => const Icon(Icons.broken_image),
+            child: CachedNetworkImage(
+              imageUrl: client.thumbnailUrl(photo.id, size: 'md'),
+              fit: BoxFit.cover,
+              placeholder: (_, __) => ColoredBox(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
               ),
+              errorWidget: (_, __, ___) => const Icon(Icons.broken_image),
             ),
           );
         },

@@ -40,21 +40,18 @@ class PhotoDetailPage extends ConsumerWidget {
           ),
         ],
       ),
-      body: Hero(
-        tag: 'photo_${photo.id}',
-        child: InteractiveViewer(
-          minScale: 1.0,
-          maxScale: 5.0,
-          child: SizedBox.expand(
-            child: CachedNetworkImage(
-              imageUrl: client.thumbnailUrl(photo.id, size: 'lg'),
-              fit: BoxFit.contain,
-              placeholder: (_, __) => const Center(
-                child: CircularProgressIndicator(),
-              ),
-              errorWidget: (_, __, ___) => const Center(
-                child: Icon(Icons.broken_image, size: 48),
-              ),
+      body: InteractiveViewer(
+        minScale: 1.0,
+        maxScale: 5.0,
+        child: SizedBox.expand(
+          child: CachedNetworkImage(
+            imageUrl: client.thumbnailUrl(photo.id, size: 'lg'),
+            fit: BoxFit.contain,
+            placeholder: (_, __) => const Center(
+              child: CircularProgressIndicator(),
+            ),
+            errorWidget: (_, __, ___) => const Center(
+              child: Icon(Icons.broken_image, size: 48),
             ),
           ),
         ),

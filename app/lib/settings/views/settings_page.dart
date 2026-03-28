@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/api/client.dart';
 import '../../core/providers/auth_provider.dart';
+import '../../core/providers/auto_upload_provider.dart';
 import '../../core/theme.dart';
+import '../../trash/views/trash_page.dart';
 
 final _statsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final client = ref.watch(apiClientProvider);
@@ -29,6 +33,16 @@ class SettingsPage extends ConsumerWidget {
             leading: const Icon(Icons.dns_outlined),
             title: const Text('Connected to'),
             subtitle: Text(auth.serverUrl ?? 'Not connected'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.qr_code),
+            title: const Text('Pair new device'),
+            subtitle: const Text('Show QR code to connect another phone'),
+            trailing: const Icon(Icons.open_in_new, size: 18),
+            onTap: () => launchUrl(
+              Uri.parse('${auth.serverUrl}/pair'),
+              mode: LaunchMode.externalApplication,
+            ),
           ),
           const Divider(),
           const _SectionHeader('Appearance'),
@@ -97,6 +111,20 @@ class SettingsPage extends ConsumerWidget {
             },
           ),
           const Divider(),
+          const _SectionHeader('Auto-Upload'),
+          _AutoUploadSection(),
+          const Divider(),
+          const _SectionHeader('Data'),
+          ListTile(
+            leading: const Icon(Icons.delete_outline),
+            title: const Text('Trash'),
+            subtitle: const Text('View and restore deleted items'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const TrashPage()),
+            ),
+          ),
+          const Divider(),
           const _SectionHeader('Account'),
           ListTile(
             leading: Icon(Icons.logout, color: colors.error),
@@ -124,6 +152,62 @@ class SettingsPage extends ConsumerWidget {
     if (mb < 1024) return '${mb.toStringAsFixed(1)} MB';
     final gb = mb / 1024;
     return '${gb.toStringAsFixed(2)} GB';
+  }
+}
+
+class _AutoUploadSection extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(autoUploadProvider);
+    final dateFormat = DateFormat.yMd().add_jm();
+
+    return Column(
+      children: [
+        SwitchListTile(
+          secondary: const Icon(Icons.cloud_upload_outlined),
+          title: const Text('Auto-upload photos'),
+          subtitle: const Text('Upload new photos from camera roll'),
+          value: state.enabled,
+          onChanged: (v) =>
+              ref.read(autoUploadProvider.notifier).setEnabled(v),
+        ),
+        if (state.enabled) ...[
+          SwitchListTile(
+            secondary: const Icon(Icons.wifi),
+            title: const Text('WiFi only'),
+            value: state.wifiOnly,
+            onChanged: (v) =>
+                ref.read(autoUploadProvider.notifier).setWifiOnly(v),
+          ),
+          ListTile(
+            leading: state.uploading
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.sync),
+            title: const Text('Sync now'),
+            subtitle: state.lastSync != null
+                ? Text('Last sync: ${dateFormat.format(state.lastSync!)}')
+                : const Text('Never synced'),
+            onTap: state.uploading
+                ? null
+                : () async {
+                    final count = await ref
+                        .read(autoUploadProvider.notifier)
+                        .syncNow();
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content: Text('Uploaded $count new photos')),
+                      );
+                    }
+                  },
+          ),
+        ],
+      ],
+    );
   }
 }
 

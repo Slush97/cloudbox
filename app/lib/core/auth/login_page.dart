@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../api/client.dart';
 import '../providers/auth_provider.dart';
+import 'qr_scan_page.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -257,7 +258,23 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   enabled: !_serverChecked,
                 ),
                 if (!_serverChecked) ...[
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final url = await Navigator.of(context).push<String>(
+                        MaterialPageRoute<String>(
+                          builder: (_) => const QrScanPage(),
+                        ),
+                      );
+                      if (url != null && mounted) {
+                        _serverController.text = url;
+                        _checkServer();
+                      }
+                    },
+                    icon: const Icon(Icons.qr_code_scanner),
+                    label: const Text('Scan QR Code'),
+                  ),
+                  const SizedBox(height: 12),
                   FilledButton(
                     onPressed: _loading ? null : _checkServer,
                     child: _loading

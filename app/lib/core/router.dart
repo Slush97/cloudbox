@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../albums/views/albums_page.dart';
+import '../map/views/map_page.dart';
 import '../photos/views/gallery_page.dart';
 import '../files/views/files_page.dart';
-import '../faces/views/faces_page.dart';
 import '../search/views/search_page.dart';
 import '../settings/views/settings_page.dart';
+import '../trash/views/trash_page.dart';
 import 'auth/login_page.dart';
 import 'providers/auth_provider.dart';
 import 'shell.dart';
@@ -14,7 +16,7 @@ import 'shell.dart';
 final _shellNavigatorKeys = [
   GlobalKey<NavigatorState>(debugLabel: 'photos'),
   GlobalKey<NavigatorState>(debugLabel: 'files'),
-  GlobalKey<NavigatorState>(debugLabel: 'faces'),
+  GlobalKey<NavigatorState>(debugLabel: 'map'),
   GlobalKey<NavigatorState>(debugLabel: 'search'),
   GlobalKey<NavigatorState>(debugLabel: 'settings'),
 ];
@@ -36,6 +38,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginPage(),
+      ),
+      GoRoute(
+        path: '/albums',
+        builder: (context, state) => const AlbumsPage(),
+      ),
+      GoRoute(
+        path: '/trash',
+        builder: (context, state) => const TrashPage(),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
@@ -63,8 +73,8 @@ final routerProvider = Provider<GoRouter>((ref) {
             navigatorKey: _shellNavigatorKeys[2],
             routes: [
               GoRoute(
-                path: '/faces',
-                builder: (context, state) => const FacesPage(),
+                path: '/map',
+                builder: (context, state) => const MapPage(),
               ),
             ],
           ),

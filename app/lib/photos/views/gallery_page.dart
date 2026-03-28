@@ -2,10 +2,13 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../albums/views/albums_page.dart';
 import '../../core/api/client.dart';
 import '../../core/models/photo.dart';
 import '../providers/photos_provider.dart';
+import '../providers/selection_provider.dart';
 import '../widgets/date_scroller.dart';
+import '../widgets/selection_bar.dart';
 import 'device_photos_page.dart';
 import 'photo_detail_page.dart';
 
@@ -16,22 +19,47 @@ class GalleryPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final photos = ref.watch(photosProvider);
     final client = ref.watch(apiClientProvider);
+    final isSelecting = ref.watch(selectionModeProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Photos')),
-      body: photos.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
-        data: (list) => _PhotoGrid(photos: list, client: client),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => const DevicePhotosPage(),
+      appBar: AppBar(
+        title: const Text('Photos'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.photo_album_outlined),
+            tooltip: 'Albums',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const AlbumsPage()),
+            ),
           ),
-        ),
-        child: const Icon(Icons.add_a_photo),
+        ],
       ),
+      body: Stack(
+        children: [
+          photos.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Center(child: Text('Error: $e')),
+            data: (list) => _PhotoGrid(photos: list, client: client),
+          ),
+          if (isSelecting)
+            const Positioned(
+              bottom: 24,
+              left: 0,
+              right: 0,
+              child: Center(child: SelectionBar()),
+            ),
+        ],
+      ),
+      floatingActionButton: isSelecting
+          ? null
+          : FloatingActionButton(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const DevicePhotosPage(),
+                ),
+              ),
+              child: const Icon(Icons.add_a_photo),
+            ),
     );
   }
 }
@@ -104,16 +132,39 @@ class _PhotoGridState extends ConsumerState<_PhotoGrid> {
                     (context, index) {
                       final photo = items[index];
                       final globalIndex = allPhotos.indexOf(photo);
+                      final isSelecting = ref.watch(selectionModeProvider);
+                      final selectedIds = ref.watch(selectedPhotoIdsProvider);
+                      final isSelected = selectedIds.contains(photo.id);
 
                       return GestureDetector(
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => PhotoDetailPage(
-                              photos: allPhotos,
-                              initialIndex: globalIndex,
-                            ),
-                          ),
-                        ),
+                        onTap: () {
+                          if (isSelecting) {
+                            final ids = ref.read(selectedPhotoIdsProvider.notifier);
+                            if (isSelected) {
+                              ids.state = {...ids.state}..remove(photo.id);
+                              if (ids.state.isEmpty) {
+                                ref.read(selectionModeProvider.notifier).state = false;
+                              }
+                            } else {
+                              ids.state = {...ids.state, photo.id};
+                            }
+                          } else {
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => PhotoDetailPage(
+                                  photos: allPhotos,
+                                  initialIndex: globalIndex,
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                        onLongPress: () {
+                          if (!isSelecting) {
+                            ref.read(selectionModeProvider.notifier).state = true;
+                            ref.read(selectedPhotoIdsProvider.notifier).state = {photo.id};
+                          }
+                        },
                         child: Stack(
                           fit: StackFit.expand,
                           children: [
@@ -129,6 +180,33 @@ class _PhotoGridState extends ConsumerState<_PhotoGrid> {
                               errorWidget: (_, __, ___) =>
                                   const Icon(Icons.broken_image),
                             ),
+                            if (isSelecting)
+                              Positioned(
+                                top: 4,
+                                left: 4,
+                                child: Container(
+                                  width: 24,
+                                  height: 24,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: isSelected
+                                        ? Theme.of(context).colorScheme.primary
+                                        : Colors.black38,
+                                    border: Border.all(color: Colors.white, width: 2),
+                                  ),
+                                  child: isSelected
+                                      ? const Icon(Icons.check, color: Colors.white, size: 14)
+                                      : null,
+                                ),
+                              ),
+                            if (photo.isFavorited && !isSelecting)
+                              const Positioned(
+                                top: 4,
+                                right: 4,
+                                child: Icon(Icons.favorite,
+                                    color: Colors.white, size: 18,
+                                    shadows: [Shadow(blurRadius: 4)]),
+                              ),
                             if (photo.isVideo)
                               Positioned(
                                 bottom: 4,

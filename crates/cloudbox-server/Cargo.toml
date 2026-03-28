@@ -42,4 +42,5 @@ anyhow = "1"
 rand.workspace = true
 bytes = "1"
 mime_guess = "2"
+qrcode = { version = "0.14", default-features = false, features = ["svg"] }
 sqlx.workspace = true

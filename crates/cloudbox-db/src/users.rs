@@ -42,6 +42,20 @@ pub async fn verify(pool: &PgPool, username: &str, password: &str) -> Result<Opt
     }
 }
 
+pub async fn get_by_id(pool: &PgPool, id: uuid::Uuid) -> Result<Option<User>, sqlx::Error> {
+    sqlx::query_as("SELECT * FROM users WHERE id = $1")
+        .bind(id)
+        .fetch_optional(pool)
+        .await
+}
+
+pub async fn get_by_username(pool: &PgPool, username: &str) -> Result<Option<User>, sqlx::Error> {
+    sqlx::query_as("SELECT * FROM users WHERE username = $1")
+        .bind(username)
+        .fetch_optional(pool)
+        .await
+}
+
 pub async fn count(pool: &PgPool) -> Result<i64, sqlx::Error> {
     let row: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM users")
         .fetch_one(pool)

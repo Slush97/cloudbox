@@ -224,20 +224,30 @@ class _FileTile extends ConsumerWidget {
           ? () =>
               ref.read(currentFolderProvider.notifier).state = file.id
           : null,
-      trailing: PopupMenuButton<String>(
-        onSelected: (action) =>
-            _onAction(action, context, ref),
-        itemBuilder: (context) => [
-          if (!file.isFolder)
-            const PopupMenuItem(
-                value: 'download', child: Text('Download')),
-          if (!file.isFolder)
-            const PopupMenuItem(
-                value: 'share', child: Text('Share link')),
-          const PopupMenuItem(
-              value: 'rename', child: Text('Rename')),
-          const PopupMenuItem(value: 'move', child: Text('Move to...')),
-          const PopupMenuItem(value: 'delete', child: Text('Delete')),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (file.isFavorited)
+            const Icon(Icons.favorite, size: 18, color: Colors.red),
+          PopupMenuButton<String>(
+            onSelected: (action) =>
+                _onAction(action, context, ref),
+            itemBuilder: (context) => [
+              if (!file.isFolder)
+                const PopupMenuItem(
+                    value: 'download', child: Text('Download')),
+              if (!file.isFolder)
+                const PopupMenuItem(
+                    value: 'share', child: Text('Share link')),
+              PopupMenuItem(
+                  value: 'favorite',
+                  child: Text(file.isFavorited ? 'Unfavorite' : 'Favorite')),
+              const PopupMenuItem(
+                  value: 'rename', child: Text('Rename')),
+              const PopupMenuItem(value: 'move', child: Text('Move to...')),
+              const PopupMenuItem(value: 'delete', child: Text('Move to trash')),
+            ],
+          ),
         ],
       ),
     );
@@ -249,6 +259,8 @@ class _FileTile extends ConsumerWidget {
         _download(context, ref);
       case 'share':
         _share(context, ref);
+      case 'favorite':
+        _toggleFavorite(ref);
       case 'rename':
         _rename(context, ref);
       case 'move':
@@ -256,6 +268,12 @@ class _FileTile extends ConsumerWidget {
       case 'delete':
         _confirmDelete(context, ref);
     }
+  }
+
+  Future<void> _toggleFavorite(WidgetRef ref) async {
+    final client = ref.read(apiClientProvider);
+    await client.toggleFavoriteFile(file.id);
+    await ref.read(filesProvider.notifier).load();
   }
 
   Future<void> _share(BuildContext context, WidgetRef ref) async {
@@ -372,9 +390,9 @@ class _FileTile extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Delete $label?'),
+        title: Text('Move $label to trash?'),
         content: Text(
-            'Permanently delete "${file.filename}"${file.isFolder ? ' and all its contents' : ''}?'),
+            '"${file.filename}"${file.isFolder ? ' and all its contents' : ''} will be permanently deleted after 30 days.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -382,7 +400,7 @@ class _FileTile extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: Text('Delete',
+            child: Text('Move to trash',
                 style: TextStyle(
                     color: Theme.of(context).colorScheme.error)),
           ),

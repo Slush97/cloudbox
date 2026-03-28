@@ -1,5 +1,7 @@
+pub mod albums;
 pub mod faces;
 pub mod files;
+pub mod pairing;
 pub mod photos;
 pub mod shares;
 pub mod stats;

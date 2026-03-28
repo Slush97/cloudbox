@@ -11,6 +11,8 @@ class FileEntry {
     required this.isFolder,
     required this.createdAt,
     required this.updatedAt,
+    this.isFavorited = false,
+    this.deletedAt,
   });
 
   factory FileEntry.fromJson(Map<String, dynamic> json) => FileEntry(
@@ -23,6 +25,8 @@ class FileEntry {
         isFolder: json['is_folder'] as bool? ?? false,
         createdAt: DateTime.parse(json['created_at'] as String),
         updatedAt: DateTime.parse(json['updated_at'] as String),
+        isFavorited: json['is_favorited'] as bool? ?? false,
+        deletedAt: json['deleted_at'] != null ? DateTime.parse(json['deleted_at'] as String) : null,
       );
 
   final String id;
@@ -34,6 +38,8 @@ class FileEntry {
   final bool isFolder;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final bool isFavorited;
+  final DateTime? deletedAt;
 
   String get humanSize {
     if (sizeBytes < 1024) return '$sizeBytes B';

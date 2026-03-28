@@ -35,12 +35,28 @@ async fn main() -> anyhow::Result<()> {
         .nest("/api/v1/auth", routes::auth::router())
         .nest("/api/v1/photos", routes::photos::router())
         .nest("/api/v1/files", routes::files::router())
+        .nest("/api/v1/albums", routes::albums::router())
+        .nest("/api/v1/trash", routes::trash::router())
         .nest("/api/v1/stats", routes::stats::router())
+        .route("/pair", get(routes::pair::pair_page))
         .route("/s/{token}", get(routes::files::download_shared))
         .layer(RequestBodyLimitLayer::new(config.max_upload_bytes))
         .layer(cors)
         .layer(TraceLayer::new_for_http())
-        .with_state(state);
+        .with_state(state.clone());
+
+    // Background task: clean up expired trash every hour
+    {
+        let trash_state = state.clone();
+        tokio::spawn(async move {
+            loop {
+                tokio::time::sleep(std::time::Duration::from_secs(3600)).await;
+                tracing::info!("running scheduled cleanup");
+                routes::trash::cleanup_expired_trash(&trash_state, 30).await;
+                cloudbox_db::pairing::cleanup_expired(&trash_state.db).await;
+            }
+        });
+    }
 
     let addr = format!("{}:{}", config.host, config.port);
     tracing::info!("listening on {addr}");

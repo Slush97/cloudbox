@@ -6,9 +6,10 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 
-use crate::{auth, error::AppError, state::AppState};
+use crate::{auth, auth::Claims, error::AppError, state::AppState};
 
 /// Sliding-window rate limiter: max 10 attempts per 60 seconds.
 static LOGIN_ATTEMPTS: LazyLock<Mutex<Vec<Instant>>> = LazyLock::new(|| Mutex::new(Vec::new()));
@@ -33,6 +34,8 @@ pub fn router() -> Router<AppState> {
         .route("/login", post(login))
         .route("/setup", post(setup))
         .route("/status", get(status))
+        .route("/pair", post(generate_pair_code))
+        .route("/pair/claim", post(claim_pair_code))
 }
 
 #[derive(Deserialize)]
@@ -94,5 +97,61 @@ async fn login(
 
     tracing::info!(username = req.username, "login successful");
     let token = auth::create_token(&state.jwt_secret, &req.username)?;
+    Ok(Json(LoginResponse { token }))
+}
+
+// ---- QR Pairing ----
+
+#[derive(Serialize)]
+struct PairResponse {
+    code: String,
+    expires_at: chrono::DateTime<chrono::Utc>,
+}
+
+#[derive(Deserialize)]
+struct ClaimRequest {
+    code: String,
+}
+
+/// Generate a pairing code (authenticated). Returns a short-lived code for QR display.
+async fn generate_pair_code(
+    State(state): State<AppState>,
+    claims: Claims,
+) -> Result<Json<PairResponse>, AppError> {
+    let user = cloudbox_db::users::get_by_username(&state.db, &claims.sub)
+        .await?
+        .ok_or(AppError::Unauthorized)?;
+
+    let code: String = rand::thread_rng()
+        .sample_iter(&rand::distributions::Alphanumeric)
+        .take(32)
+        .map(char::from)
+        .collect();
+
+    let expires_at = chrono::Utc::now() + chrono::Duration::minutes(5);
+
+    cloudbox_db::pairing::create(&state.db, user.id, &code, expires_at).await?;
+
+    tracing::info!(username = claims.sub, "pairing code generated");
+    Ok(Json(PairResponse { code, expires_at }))
+}
+
+/// Claim a pairing code (unauthenticated). Returns a JWT if the code is valid.
+async fn claim_pair_code(
+    State(state): State<AppState>,
+    Json(req): Json<ClaimRequest>,
+) -> Result<Json<LoginResponse>, AppError> {
+    check_login_rate_limit()?;
+
+    let pairing = cloudbox_db::pairing::claim(&state.db, &req.code)
+        .await?
+        .ok_or(AppError::Unauthorized)?;
+
+    let user = cloudbox_db::users::get_by_id(&state.db, pairing.user_id)
+        .await?
+        .ok_or(AppError::Unauthorized)?;
+
+    tracing::info!(username = user.username, "pairing code claimed");
+    let token = auth::create_token(&state.jwt_secret, &user.username)?;
     Ok(Json(LoginResponse { token }))
 }

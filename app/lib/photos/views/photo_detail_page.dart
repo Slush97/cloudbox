@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
 
+import '../../albums/widgets/add_to_album_sheet.dart';
 import '../../core/api/client.dart';
 import '../../core/models/photo.dart';
 import '../../core/models/photo_tag.dart';
@@ -56,6 +57,17 @@ class _PhotoDetailPageState extends ConsumerState<PhotoDetailPage> {
         scrolledUnderElevation: 0,
         actions: [
           IconButton(
+            icon: Icon(
+              _currentPhoto.isFavorited ? Icons.favorite : Icons.favorite_border,
+              color: _currentPhoto.isFavorited ? Colors.red : null,
+            ),
+            onPressed: () => _toggleFavorite(),
+          ),
+          IconButton(
+            icon: const Icon(Icons.photo_album_outlined),
+            onPressed: () => _addToAlbum(context),
+          ),
+          IconButton(
             icon: const Icon(Icons.info_outline),
             onPressed: () => _showInfo(context),
           ),
@@ -104,13 +116,31 @@ class _PhotoDetailPageState extends ConsumerState<PhotoDetailPage> {
     );
   }
 
+  Future<void> _addToAlbum(BuildContext context) async {
+    final albumName = await showAddToAlbumSheet(
+      context,
+      ref,
+      [_currentPhoto.id],
+    );
+    if (albumName != null && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Added to "$albumName"')),
+      );
+    }
+  }
+
+  Future<void> _toggleFavorite() async {
+    await ref.read(photosProvider.notifier).toggleFavorite(_currentPhoto.id);
+    setState(() {});
+  }
+
   Future<void> _confirmDelete(BuildContext context) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete photo?'),
+        title: const Text('Move to trash?'),
         content: const Text(
-            'This will permanently delete this photo and all associated data.'),
+            'This photo will be moved to trash and permanently deleted after 30 days.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -119,7 +149,7 @@ class _PhotoDetailPageState extends ConsumerState<PhotoDetailPage> {
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
             child: Text(
-              'Delete',
+              'Move to trash',
               style:
                   TextStyle(color: Theme.of(context).colorScheme.error),
             ),
@@ -214,12 +244,6 @@ class _PhotoInfoSheetState extends State<_PhotoInfoSheet> {
               style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 12),
           _InfoRow('Date', widget.dateFormat.format(photo.displayDate)),
-          if (photo.cameraMake != null || photo.cameraModel != null)
-            _InfoRow(
-                'Camera',
-                [photo.cameraMake, photo.cameraModel]
-                    .whereType<String>()
-                    .join(' ')),
           if (photo.width != null && photo.height != null)
             _InfoRow('Resolution', '${photo.width} x ${photo.height}'),
           if (photo.humanSize != null)
@@ -228,11 +252,37 @@ class _PhotoInfoSheetState extends State<_PhotoInfoSheet> {
             _InfoRow('Duration', photo.humanDuration!),
           if (photo.videoCodec != null)
             _InfoRow('Codec', photo.videoCodec!),
-          if (photo.latitude != null && photo.longitude != null)
+          if (photo.cameraMake != null || photo.cameraModel != null ||
+              photo.aperture != null || photo.iso != null) ...[
+            const SizedBox(height: 12),
+            Text('Camera', style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: 4),
+            if (photo.cameraMake != null || photo.cameraModel != null)
+              _InfoRow(
+                  'Model',
+                  [photo.cameraMake, photo.cameraModel]
+                      .whereType<String>()
+                      .join(' ')),
+            if (photo.lensModel != null)
+              _InfoRow('Lens', photo.lensModel!),
+            if (photo.aperture != null)
+              _InfoRow('Aperture', photo.aperture!),
+            if (photo.shutterSpeed != null)
+              _InfoRow('Shutter', photo.shutterSpeed!),
+            if (photo.iso != null)
+              _InfoRow('ISO', '${photo.iso}'),
+            if (photo.focalLength != null)
+              _InfoRow('Focal length', photo.focalLength!),
+          ],
+          if (photo.latitude != null && photo.longitude != null) ...[
+            const SizedBox(height: 12),
+            Text('Location', style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: 4),
             _InfoRow(
-                'Location',
+                'Coordinates',
                 '${photo.latitude!.toStringAsFixed(4)}, '
                 '${photo.longitude!.toStringAsFixed(4)}'),
+          ],
           const SizedBox(height: 16),
           Text('Tags', style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 8),

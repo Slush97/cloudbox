@@ -18,6 +18,7 @@ pub fn router() -> Router<AppState> {
         .route("/search", get(search_files))
         .route("/{id}", get(download))
         .route("/{id}", delete(delete_file))
+        .route("/{id}/favorite", put(toggle_file_favorite))
         .route("/{id}/rename", put(rename_file))
         .route("/{id}/move", put(move_file))
         .route("/{id}/ancestors", get(get_ancestors))
@@ -228,15 +229,18 @@ async fn delete_file(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
 ) -> Result<(), AppError> {
-    let keys = cloudbox_db::files::descendant_storage_keys(&state.db, id).await?;
-    cloudbox_db::files::delete(&state.db, id).await?;
-
-    for key in keys {
-        let path = std::path::Path::new(&state.storage_path).join(&key);
-        tokio::fs::remove_file(path).await.ok();
-    }
-
+    // Soft delete — files are cleaned up when trash expires
+    cloudbox_db::files::soft_delete(&state.db, id).await?;
     Ok(())
+}
+
+async fn toggle_file_favorite(
+    _claims: Claims,
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+) -> Result<Json<cloudbox_db::files::File>, AppError> {
+    let file = cloudbox_db::files::toggle_favorite(&state.db, id).await?;
+    Ok(Json(file))
 }
 
 // ---- Share links ----

@@ -13,6 +13,8 @@ pub struct File {
     pub is_folder: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub is_favorited: bool,
+    pub deleted_at: Option<DateTime<Utc>>,
 }
 
 pub async fn insert(
@@ -72,7 +74,7 @@ pub async fn list_children(
 ) -> Result<Vec<File>, sqlx::Error> {
     sqlx::query_as(
         r#"SELECT * FROM files
-           WHERE parent_id IS NOT DISTINCT FROM $1
+           WHERE parent_id IS NOT DISTINCT FROM $1 AND deleted_at IS NULL
            ORDER BY is_folder DESC, filename ASC"#,
     )
     .bind(parent_id)
@@ -136,7 +138,7 @@ pub async fn search_by_name(
 ) -> Result<Vec<File>, sqlx::Error> {
     sqlx::query_as(
         r#"SELECT * FROM files
-           WHERE filename ILIKE '%' || $1 || '%'
+           WHERE filename ILIKE '%' || $1 || '%' AND deleted_at IS NULL
            ORDER BY updated_at DESC
            LIMIT $2"#,
     )
@@ -192,4 +194,47 @@ pub async fn delete(pool: &PgPool, id: Uuid) -> Result<(), sqlx::Error> {
         .execute(pool)
         .await?;
     Ok(())
+}
+
+pub async fn toggle_favorite(pool: &PgPool, id: Uuid) -> Result<File, sqlx::Error> {
+    sqlx::query_as(
+        "UPDATE files SET is_favorited = NOT is_favorited WHERE id = $1 AND deleted_at IS NULL RETURNING *",
+    )
+    .bind(id)
+    .fetch_one(pool)
+    .await
+}
+
+pub async fn soft_delete(pool: &PgPool, id: Uuid) -> Result<(), sqlx::Error> {
+    sqlx::query("UPDATE files SET deleted_at = now() WHERE id = $1")
+        .bind(id)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+pub async fn list_trash(pool: &PgPool) -> Result<Vec<File>, sqlx::Error> {
+    sqlx::query_as(
+        "SELECT * FROM files WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC",
+    )
+    .fetch_all(pool)
+    .await
+}
+
+pub async fn restore(pool: &PgPool, id: Uuid) -> Result<File, sqlx::Error> {
+    sqlx::query_as(
+        "UPDATE files SET deleted_at = NULL WHERE id = $1 RETURNING *",
+    )
+    .bind(id)
+    .fetch_one(pool)
+    .await
+}
+
+pub async fn expired_trash(pool: &PgPool, days: i64) -> Result<Vec<File>, sqlx::Error> {
+    sqlx::query_as(
+        "SELECT * FROM files WHERE deleted_at IS NOT NULL AND deleted_at < now() - make_interval(days => $1)",
+    )
+    .bind(days)
+    .fetch_all(pool)
+    .await
 }

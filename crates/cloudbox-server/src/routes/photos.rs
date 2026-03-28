@@ -15,9 +15,14 @@ pub fn router() -> Router<AppState> {
     Router::new()
         .route("/", get(list_photos))
         .route("/upload", post(upload))
+        .route("/locations", get(list_locations))
+        .route("/batch/favorite", post(batch_favorite))
+        .route("/batch/delete", post(batch_delete))
+        .route("/batch/album", post(batch_add_to_album))
         .route("/{id}", get(get_photo))
         .route("/{id}/thumb/{size}", get(get_thumbnail))
         .route("/{id}", delete(delete_photo))
+        .route("/{id}/favorite", put(toggle_favorite))
         .route("/{id}/stream", get(stream_video))
         .route("/search", get(search))
         .route("/{id}/tags", get(list_tags))
@@ -33,6 +38,11 @@ pub fn router() -> Router<AppState> {
 struct ListParams {
     cursor: Option<Uuid>,
     limit: Option<i64>,
+    favorites: Option<bool>,
+    media_type: Option<String>,
+    date_from: Option<String>,
+    date_to: Option<String>,
+    has_location: Option<bool>,
 }
 
 async fn list_photos(
@@ -41,7 +51,16 @@ async fn list_photos(
     Query(params): Query<ListParams>,
 ) -> Result<Json<Vec<cloudbox_db::photos::Photo>>, AppError> {
     let limit = params.limit.unwrap_or(50).min(500);
-    let photos = cloudbox_db::photos::list(&state.db, params.cursor, limit).await?;
+    let filter = cloudbox_db::photos::PhotoFilter {
+        cursor: params.cursor,
+        limit,
+        favorites_only: params.favorites.unwrap_or(false),
+        media_type: params.media_type.filter(|s| s == "photo" || s == "video"),
+        date_from: params.date_from.and_then(|s| s.parse().ok()),
+        date_to: params.date_to.and_then(|s| s.parse().ok()),
+        has_location: params.has_location.unwrap_or(false),
+    };
+    let photos = cloudbox_db::photos::list(&state.db, &filter).await?;
     Ok(Json(photos))
 }
 
@@ -280,23 +299,83 @@ async fn delete_photo(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
 ) -> Result<(), AppError> {
-    let photo = cloudbox_db::photos::get(&state.db, id)
+    cloudbox_db::photos::get(&state.db, id)
         .await?
         .ok_or(AppError::NotFound)?;
 
-    // Remove original file
-    let orig_path = std::path::Path::new(&state.storage_path).join(&photo.storage_key);
-    tokio::fs::remove_file(&orig_path).await.ok();
-
-    // Remove thumbnails
-    for size in ["sm", "md", "lg"] {
-        let thumb = format!("{}/thumbs/{id}_{size}.webp", state.storage_path);
-        tokio::fs::remove_file(&thumb).await.ok();
-    }
-
-    // Delete DB row (cascades to photo_embeddings and faces)
-    cloudbox_db::photos::delete(&state.db, id).await?;
+    // Soft delete — files are cleaned up when trash expires
+    cloudbox_db::photos::soft_delete(&state.db, id).await?;
     Ok(())
+}
+
+async fn toggle_favorite(
+    _claims: Claims,
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+) -> Result<Json<cloudbox_db::photos::Photo>, AppError> {
+    let photo = cloudbox_db::photos::toggle_favorite(&state.db, id).await?;
+    Ok(Json(photo))
+}
+
+async fn list_locations(
+    _claims: Claims,
+    State(state): State<AppState>,
+) -> Result<Json<Vec<cloudbox_db::photos::PhotoLocation>>, AppError> {
+    let locations = cloudbox_db::photos::list_locations(&state.db).await?;
+    Ok(Json(locations))
+}
+
+#[derive(Deserialize)]
+struct BatchIdsRequest {
+    ids: Vec<Uuid>,
+}
+
+#[derive(Deserialize)]
+struct BatchFavoriteRequest {
+    ids: Vec<Uuid>,
+    value: bool,
+}
+
+#[derive(Deserialize)]
+struct BatchAlbumRequest {
+    ids: Vec<Uuid>,
+    album_id: Uuid,
+}
+
+async fn batch_favorite(
+    _claims: Claims,
+    State(state): State<AppState>,
+    Json(req): Json<BatchFavoriteRequest>,
+) -> Result<Json<u64>, AppError> {
+    if req.ids.len() > 500 {
+        return Err(AppError::BadRequest("max 500 items per batch".into()));
+    }
+    let affected = cloudbox_db::photos::batch_set_favorite(&state.db, &req.ids, req.value).await?;
+    Ok(Json(affected))
+}
+
+async fn batch_delete(
+    _claims: Claims,
+    State(state): State<AppState>,
+    Json(req): Json<BatchIdsRequest>,
+) -> Result<Json<u64>, AppError> {
+    if req.ids.len() > 500 {
+        return Err(AppError::BadRequest("max 500 items per batch".into()));
+    }
+    let affected = cloudbox_db::photos::batch_soft_delete(&state.db, &req.ids).await?;
+    Ok(Json(affected))
+}
+
+async fn batch_add_to_album(
+    _claims: Claims,
+    State(state): State<AppState>,
+    Json(req): Json<BatchAlbumRequest>,
+) -> Result<Json<u64>, AppError> {
+    if req.ids.len() > 500 {
+        return Err(AppError::BadRequest("max 500 items per batch".into()));
+    }
+    let added = cloudbox_db::albums::add_photos(&state.db, req.album_id, &req.ids).await?;
+    Ok(Json(added))
 }
 
 // ---- Tags ----

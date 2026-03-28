@@ -54,12 +54,25 @@ class ApiClient {
   }
 
   // Photos
-  Future<List<Map<String, dynamic>>> listPhotos({String? cursor, int limit = 50}) async {
+  Future<List<Map<String, dynamic>>> listPhotos({
+    String? cursor,
+    int limit = 50,
+    bool? favorites,
+    String? mediaType,
+    String? dateFrom,
+    String? dateTo,
+    bool? hasLocation,
+  }) async {
     final res = await _dio.get<List<dynamic>>(
       '/photos',
       queryParameters: {
         if (cursor != null) 'cursor': cursor,
         'limit': limit,
+        if (favorites == true) 'favorites': true,
+        if (mediaType != null) 'media_type': mediaType,
+        if (dateFrom != null) 'date_from': dateFrom,
+        if (dateTo != null) 'date_to': dateTo,
+        if (hasLocation == true) 'has_location': true,
       },
     );
     return res.data!.cast<Map<String, dynamic>>();
@@ -85,6 +98,40 @@ class ApiClient {
 
   Future<void> deletePhoto(String id) async {
     await _dio.delete<void>('/photos/$id');
+  }
+
+  Future<Map<String, dynamic>> toggleFavoritePhoto(String id) async {
+    final res = await _dio.put<Map<String, dynamic>>('/photos/$id/favorite');
+    return res.data!;
+  }
+
+  Future<List<Map<String, dynamic>>> listPhotoLocations() async {
+    final res = await _dio.get<List<dynamic>>('/photos/locations');
+    return res.data!.cast<Map<String, dynamic>>();
+  }
+
+  Future<int> batchFavoritePhotos(List<String> ids, bool value) async {
+    final res = await _dio.post<int>(
+      '/photos/batch/favorite',
+      data: {'ids': ids, 'value': value},
+    );
+    return res.data!;
+  }
+
+  Future<int> batchDeletePhotos(List<String> ids) async {
+    final res = await _dio.post<int>(
+      '/photos/batch/delete',
+      data: {'ids': ids},
+    );
+    return res.data!;
+  }
+
+  Future<int> batchAddToAlbum(String albumId, List<String> photoIds) async {
+    final res = await _dio.post<int>(
+      '/photos/batch/album',
+      data: {'ids': photoIds, 'album_id': albumId},
+    );
+    return res.data!;
   }
 
   String originalUrl(String photoId) {
@@ -195,6 +242,11 @@ class ApiClient {
     await _dio.delete<void>('/files/$id');
   }
 
+  Future<Map<String, dynamic>> toggleFavoriteFile(String id) async {
+    final res = await _dio.put<Map<String, dynamic>>('/files/$id/favorite');
+    return res.data!;
+  }
+
   Future<void> downloadFile(String fileId, String savePath) async {
     await _dio.download('/files/$fileId', savePath);
   }
@@ -222,4 +274,95 @@ class ApiClient {
   }
 
   String shareUrl(String token) => '$baseUrl/s/$token';
+
+  // Albums
+  Future<List<Map<String, dynamic>>> listAlbums() async {
+    final res = await _dio.get<List<dynamic>>('/albums');
+    return res.data!.cast<Map<String, dynamic>>();
+  }
+
+  Future<Map<String, dynamic>> createAlbum(String name) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/albums',
+      data: {'name': name},
+    );
+    return res.data!;
+  }
+
+  Future<Map<String, dynamic>> updateAlbum(String id, String name) async {
+    final res = await _dio.put<Map<String, dynamic>>(
+      '/albums/$id',
+      data: {'name': name},
+    );
+    return res.data!;
+  }
+
+  Future<void> deleteAlbum(String id) async {
+    await _dio.delete<void>('/albums/$id');
+  }
+
+  Future<List<Map<String, dynamic>>> listAlbumPhotos(String albumId, {String? cursor, int limit = 50}) async {
+    final res = await _dio.get<List<dynamic>>(
+      '/albums/$albumId/photos',
+      queryParameters: {
+        if (cursor != null) 'cursor': cursor,
+        'limit': limit,
+      },
+    );
+    return res.data!.cast<Map<String, dynamic>>();
+  }
+
+  Future<int> addPhotosToAlbum(String albumId, List<String> photoIds) async {
+    final res = await _dio.post<int>(
+      '/albums/$albumId/photos',
+      data: {'photo_ids': photoIds},
+    );
+    return res.data!;
+  }
+
+  Future<void> removePhotoFromAlbum(String albumId, String photoId) async {
+    await _dio.delete<void>('/albums/$albumId/photos/$photoId');
+  }
+
+  Future<Map<String, dynamic>> setAlbumCover(String albumId, String photoId) async {
+    final res = await _dio.put<Map<String, dynamic>>(
+      '/albums/$albumId/cover',
+      data: {'photo_id': photoId},
+    );
+    return res.data!;
+  }
+
+  // Trash
+  Future<Map<String, dynamic>> listTrash({String? cursor, int limit = 50}) async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      '/trash',
+      queryParameters: {
+        if (cursor != null) 'cursor': cursor,
+        'limit': limit,
+      },
+    );
+    return res.data!;
+  }
+
+  Future<Map<String, dynamic>> restorePhoto(String id) async {
+    final res = await _dio.post<Map<String, dynamic>>('/trash/photo/$id/restore');
+    return res.data!;
+  }
+
+  Future<Map<String, dynamic>> restoreFile(String id) async {
+    final res = await _dio.post<Map<String, dynamic>>('/trash/file/$id/restore');
+    return res.data!;
+  }
+
+  Future<void> permanentDeletePhoto(String id) async {
+    await _dio.delete<void>('/trash/photo/$id');
+  }
+
+  Future<void> permanentDeleteFile(String id) async {
+    await _dio.delete<void>('/trash/file/$id');
+  }
+
+  Future<void> emptyTrash() async {
+    await _dio.delete<void>('/trash/empty');
+  }
 }

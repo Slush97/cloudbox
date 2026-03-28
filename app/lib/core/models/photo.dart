@@ -15,6 +15,13 @@ class Photo {
     this.durationSecs,
     this.videoCodec,
     required this.createdAt,
+    this.isFavorited = false,
+    this.deletedAt,
+    this.iso,
+    this.aperture,
+    this.shutterSpeed,
+    this.focalLength,
+    this.lensModel,
   });
 
   factory Photo.fromJson(Map<String, dynamic> json) => Photo(
@@ -33,6 +40,13 @@ class Photo {
         durationSecs: (json['duration_secs'] as num?)?.toDouble(),
         videoCodec: json['video_codec'] as String?,
         createdAt: DateTime.parse(json['created_at'] as String),
+        isFavorited: json['is_favorited'] as bool? ?? false,
+        deletedAt: json['deleted_at'] != null ? DateTime.parse(json['deleted_at'] as String) : null,
+        iso: json['iso'] as int?,
+        aperture: json['aperture'] as String?,
+        shutterSpeed: json['shutter_speed'] as String?,
+        focalLength: json['focal_length'] as String?,
+        lensModel: json['lens_model'] as String?,
       );
 
   final String id;
@@ -50,6 +64,38 @@ class Photo {
   final double? durationSecs;
   final String? videoCodec;
   final DateTime createdAt;
+  final bool isFavorited;
+  final DateTime? deletedAt;
+  final int? iso;
+  final String? aperture;
+  final String? shutterSpeed;
+  final String? focalLength;
+  final String? lensModel;
+
+  Photo copyWith({bool? isFavorited}) => Photo(
+        id: id,
+        filename: filename,
+        storageKey: storageKey,
+        takenAt: takenAt,
+        latitude: latitude,
+        longitude: longitude,
+        cameraMake: cameraMake,
+        cameraModel: cameraModel,
+        width: width,
+        height: height,
+        fileSize: fileSize,
+        mediaType: mediaType,
+        durationSecs: durationSecs,
+        videoCodec: videoCodec,
+        createdAt: createdAt,
+        isFavorited: isFavorited ?? this.isFavorited,
+        deletedAt: deletedAt,
+        iso: iso,
+        aperture: aperture,
+        shutterSpeed: shutterSpeed,
+        focalLength: focalLength,
+        lensModel: lensModel,
+      );
 
   bool get isVideo => mediaType == 'video';
 

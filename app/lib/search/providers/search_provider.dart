@@ -15,15 +15,37 @@ class SearchNotifier extends StateNotifier<AsyncValue<List<Photo>?>> {
 
   final ApiClient _client;
 
-  Future<void> search(String query) async {
-    if (query.trim().isEmpty) {
+  Future<void> search(
+    String query, {
+    String? mediaType,
+    bool? hasLocation,
+    String? dateFrom,
+    String? dateTo,
+  }) async {
+    final hasQuery = query.trim().isNotEmpty;
+    final hasFilters = mediaType != null || hasLocation == true || dateFrom != null || dateTo != null;
+
+    if (!hasQuery && !hasFilters) {
       state = const AsyncValue.data(null);
       return;
     }
 
     state = const AsyncValue.loading();
     try {
-      final data = await _client.searchPhotos(query);
+      List<Map<String, dynamic>> data;
+      if (hasQuery) {
+        // Semantic search via CLIP — filters are not combined with CLIP yet
+        data = await _client.searchPhotos(query);
+      } else {
+        // Filter-only search via list endpoint
+        data = await _client.listPhotos(
+          limit: 100,
+          mediaType: mediaType,
+          hasLocation: hasLocation,
+          dateFrom: dateFrom,
+          dateTo: dateTo,
+        );
+      }
       state = AsyncValue.data(data.map(Photo.fromJson).toList());
     } catch (e, st) {
       state = AsyncValue.error(e, st);

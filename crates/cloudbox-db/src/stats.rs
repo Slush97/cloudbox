@@ -8,16 +8,16 @@ pub struct Stats {
 }
 
 pub async fn get(pool: &PgPool, storage_path: &str) -> Result<Stats, sqlx::Error> {
-    let (photo_count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM photos")
+    let (photo_count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM photos WHERE deleted_at IS NULL")
         .fetch_one(pool)
         .await?;
 
-    let (file_count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM files")
+    let (file_count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM files WHERE deleted_at IS NULL")
         .fetch_one(pool)
         .await?;
 
     let (file_bytes,): (Option<i64>,) =
-        sqlx::query_as("SELECT SUM(size_bytes) FROM files")
+        sqlx::query_as("SELECT SUM(size_bytes) FROM files WHERE deleted_at IS NULL")
             .fetch_one(pool)
             .await?;
 

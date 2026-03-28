@@ -63,9 +63,9 @@ const _destinations = [
     label: 'Files',
   ),
   NavigationDestination(
-    icon: Icon(Icons.face_outlined),
-    selectedIcon: Icon(Icons.face),
-    label: 'Faces',
+    icon: Icon(Icons.map_outlined),
+    selectedIcon: Icon(Icons.map),
+    label: 'Map',
   ),
   NavigationDestination(
     icon: Icon(Icons.search_outlined),

@@ -44,6 +44,49 @@ pub fn extract(data: &[u8]) -> Option<PhotoMeta> {
         }
     }
 
+    // Extended EXIF fields
+    if let Some(field) = exif_data.get_field(exif::Tag::PhotographicSensitivity, exif::In::PRIMARY) {
+        if let Some(iso) = field.value.get_uint(0) {
+            meta.iso = Some(iso as i32);
+        }
+    }
+    if let Some(field) = exif_data.get_field(exif::Tag::FNumber, exif::In::PRIMARY) {
+        if let exif::Value::Rational(ref v) = field.value {
+            if let Some(r) = v.first() {
+                let f = r.to_f64();
+                meta.aperture = Some(format!("f/{:.1}", f));
+            }
+        }
+    }
+    if let Some(field) = exif_data.get_field(exif::Tag::ExposureTime, exif::In::PRIMARY) {
+        if let exif::Value::Rational(ref v) = field.value {
+            if let Some(r) = v.first() {
+                if r.num == 0 {
+                    // skip
+                } else if r.num == 1 {
+                    meta.shutter_speed = Some(format!("1/{}s", r.denom));
+                } else {
+                    let secs = r.to_f64();
+                    if secs >= 1.0 {
+                        meta.shutter_speed = Some(format!("{:.1}s", secs));
+                    } else {
+                        meta.shutter_speed = Some(format!("1/{:.0}s", 1.0 / secs));
+                    }
+                }
+            }
+        }
+    }
+    if let Some(field) = exif_data.get_field(exif::Tag::FocalLength, exif::In::PRIMARY) {
+        if let exif::Value::Rational(ref v) = field.value {
+            if let Some(r) = v.first() {
+                meta.focal_length = Some(format!("{:.0}mm", r.to_f64()));
+            }
+        }
+    }
+    if let Some(field) = exif_data.get_field(exif::Tag::LensModel, exif::In::PRIMARY) {
+        meta.lens_model = Some(field.display_value().to_string());
+    }
+
     Some(meta)
 }
 

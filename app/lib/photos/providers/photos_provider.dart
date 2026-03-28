@@ -52,4 +52,13 @@ class PhotosNotifier extends StateNotifier<AsyncValue<List<Photo>>> {
     await _client.uploadPhoto(data, filename);
     await load();
   }
+
+  Future<void> toggleFavorite(String id) async {
+    final result = await _client.toggleFavoritePhoto(id);
+    final updated = Photo.fromJson(result);
+    final current = state.valueOrNull ?? [];
+    state = AsyncValue.data(
+      current.map((p) => p.id == id ? updated : p).toList(),
+    );
+  }
 }

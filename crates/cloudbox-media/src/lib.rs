@@ -12,6 +12,11 @@ pub struct PhotoMeta {
     pub camera_model: Option<String>,
     pub width: Option<i32>,
     pub height: Option<i32>,
+    pub iso: Option<i32>,
+    pub aperture: Option<String>,
+    pub shutter_speed: Option<String>,
+    pub focal_length: Option<String>,
+    pub lens_model: Option<String>,
 }
 
 #[derive(Debug, Default)]

@@ -20,10 +20,9 @@ class PhotoDetailPage extends ConsumerWidget {
     final colors = Theme.of(context).colorScheme;
 
     return Scaffold(
-      extendBodyBehindAppBar: true,
       backgroundColor: colors.surfaceContainerLowest,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: colors.surfaceContainerLowest,
         elevation: 0,
         scrolledUnderElevation: 0,
         actions: [

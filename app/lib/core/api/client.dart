@@ -102,6 +102,15 @@ class ApiClient {
     return res.data!.cast<Map<String, dynamic>>();
   }
 
+  Future<List<Map<String, dynamic>>> clusterPhotos(int clusterId) async {
+    final res = await _dio.get<List<dynamic>>('/photos/faces/$clusterId/photos');
+    return res.data!.cast<Map<String, dynamic>>();
+  }
+
+  Future<void> setClusterLabel(int clusterId, String label) async {
+    await _dio.put<void>('/photos/faces/$clusterId/label', data: {'label': label});
+  }
+
   // Stats
   Future<Map<String, dynamic>> getStats() async {
     final res = await _dio.get<Map<String, dynamic>>('/stats');

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/client.dart';
 import '../providers/faces_provider.dart';
+import 'cluster_detail_page.dart';
 
 class FacesPage extends ConsumerWidget {
   const FacesPage({super.key});
@@ -37,30 +38,37 @@ class FacesPage extends ConsumerWidget {
             itemCount: list.length,
             itemBuilder: (context, index) {
               final cluster = list[index];
-              return Column(
-                children: [
-                  Expanded(
-                    child: CircleAvatar(
-                      radius: 48,
-                      backgroundImage: cluster.samplePhotoId != null
-                          ? CachedNetworkImageProvider(
-                              client.thumbnailUrl(cluster.samplePhotoId!, size: 'md'),
-                            )
-                          : null,
-                      child: cluster.samplePhotoId == null ? const Icon(Icons.face, size: 40) : null,
+              return GestureDetector(
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => ClusterDetailPage(cluster: cluster),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: CircleAvatar(
+                        radius: 48,
+                        backgroundImage: cluster.samplePhotoId != null
+                            ? CachedNetworkImageProvider(
+                                client.thumbnailUrl(cluster.samplePhotoId!, size: 'md'),
+                              )
+                            : null,
+                        child: cluster.samplePhotoId == null ? const Icon(Icons.face, size: 40) : null,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    cluster.label ?? 'Person ${cluster.clusterId}',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    '${cluster.faceCount} photos',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    Text(
+                      cluster.label ?? 'Person ${cluster.clusterId}',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      '${cluster.faceCount} photos',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
               );
             },
           ),

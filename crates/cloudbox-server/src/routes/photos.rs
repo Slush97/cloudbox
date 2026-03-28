@@ -1,6 +1,6 @@
 use axum::{
     extract::{Multipart, Path, Query, State},
-    routing::{delete, get, post},
+    routing::{delete, get, post, put},
     Json, Router,
 };
 use serde::Deserialize;
@@ -18,6 +18,8 @@ pub fn router() -> Router<AppState> {
         .route("/search", get(search))
         .route("/faces", get(list_face_clusters))
         .route("/faces/recluster", post(recluster_faces))
+        .route("/faces/{cluster_id}/photos", get(cluster_photos))
+        .route("/faces/{cluster_id}/label", put(set_cluster_label))
 }
 
 #[derive(Deserialize)]
@@ -163,6 +165,30 @@ async fn list_face_clusters(
 ) -> Result<Json<Vec<cloudbox_db::faces::FaceCluster>>, AppError> {
     let clusters = cloudbox_db::faces::list_clusters(&state.db).await?;
     Ok(Json(clusters))
+}
+
+async fn cluster_photos(
+    _claims: Claims,
+    State(state): State<AppState>,
+    Path(cluster_id): Path<i32>,
+) -> Result<Json<Vec<cloudbox_db::photos::Photo>>, AppError> {
+    let photos = cloudbox_db::faces::photos_by_cluster(&state.db, cluster_id).await?;
+    Ok(Json(photos))
+}
+
+#[derive(Deserialize)]
+struct LabelRequest {
+    label: String,
+}
+
+async fn set_cluster_label(
+    _claims: Claims,
+    State(state): State<AppState>,
+    Path(cluster_id): Path<i32>,
+    Json(req): Json<LabelRequest>,
+) -> Result<(), AppError> {
+    cloudbox_db::faces::set_cluster_label(&state.db, cluster_id, &req.label).await?;
+    Ok(())
 }
 
 async fn recluster_faces(

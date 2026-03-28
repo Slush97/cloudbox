@@ -97,6 +97,40 @@ pub async fn update_cluster_ids(
     Ok(())
 }
 
+/// Get all photos that contain a face in the given cluster.
+pub async fn photos_by_cluster(
+    pool: &PgPool,
+    cluster_id: i32,
+) -> Result<Vec<crate::photos::Photo>, sqlx::Error> {
+    sqlx::query_as(
+        r#"SELECT DISTINCT p.* FROM photos p
+           JOIN faces f ON f.photo_id = p.id
+           WHERE f.cluster_id = $1
+           ORDER BY p.created_at DESC"#,
+    )
+    .bind(cluster_id)
+    .fetch_all(pool)
+    .await
+}
+
+/// Set or update the user-assigned label for a face cluster.
+pub async fn set_cluster_label(
+    pool: &PgPool,
+    cluster_id: i32,
+    label: &str,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"INSERT INTO face_cluster_labels (cluster_id, label)
+           VALUES ($1, $2)
+           ON CONFLICT (cluster_id) DO UPDATE SET label = $2"#,
+    )
+    .bind(cluster_id)
+    .bind(label)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
 pub async fn list_clusters(pool: &PgPool) -> Result<Vec<FaceCluster>, sqlx::Error> {
     let rows = sqlx::query_as::<_, (i32, Option<String>, i64)>(
         r#"SELECT f.cluster_id, fc.label, COUNT(*) as face_count

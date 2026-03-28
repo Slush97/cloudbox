@@ -13,20 +13,25 @@ class FaceCluster {
     required this.clusterId,
     this.label,
     required this.faceCount,
-    this.samplePhotoId,
+    required this.samplePhotoIds,
   });
 
   factory FaceCluster.fromJson(Map<String, dynamic> json) => FaceCluster(
         clusterId: json['cluster_id'] as int,
         label: json['label'] as String?,
         faceCount: json['face_count'] as int,
-        samplePhotoId: (json['sample_photo_ids'] as List?)?.firstOrNull as String?,
+        samplePhotoIds: (json['sample_photo_ids'] as List?)
+                ?.map((e) => e as String)
+                .toList() ??
+            [],
       );
 
   final int clusterId;
   final String? label;
   final int faceCount;
-  final String? samplePhotoId;
+  final List<String> samplePhotoIds;
+
+  String? get samplePhotoId => samplePhotoIds.isNotEmpty ? samplePhotoIds.first : null;
 }
 
 class FaceClustersNotifier extends StateNotifier<AsyncValue<List<FaceCluster>>> {

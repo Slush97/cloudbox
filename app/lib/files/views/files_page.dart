@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show File;
 
 import 'package:file_picker/file_picker.dart';
@@ -467,7 +468,8 @@ class _MoveFolderPicker extends StatefulWidget {
 }
 
 class _MoveFolderPickerState extends State<_MoveFolderPicker> {
-  String? _currentParent;
+  final List<String?> _parentHistory = [null]; // stack: root is null
+  String? get _currentParent => _parentHistory.last;
   List<FileEntry> _folders = [];
   bool _loading = true;
 
@@ -491,6 +493,18 @@ class _MoveFolderPickerState extends State<_MoveFolderPicker> {
     });
   }
 
+  void _goUp() {
+    if (_parentHistory.length > 1) {
+      _parentHistory.removeLast();
+      _loadFolders();
+    }
+  }
+
+  void _goInto(String folderId) {
+    _parentHistory.add(folderId);
+    _loadFolders();
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -500,15 +514,11 @@ class _MoveFolderPickerState extends State<_MoveFolderPicker> {
         height: 300,
         child: Column(
           children: [
-            if (_currentParent != null)
+            if (_parentHistory.length > 1)
               ListTile(
                 leading: const Icon(Icons.arrow_back),
                 title: const Text('Back'),
-                onTap: () {
-                  // Go up one level (simplified: go to root)
-                  setState(() => _currentParent = null);
-                  _loadFolders();
-                },
+                onTap: _goUp,
               ),
             ListTile(
               leading: const Icon(Icons.check),
@@ -538,11 +548,7 @@ class _MoveFolderPickerState extends State<_MoveFolderPicker> {
                             leading: const Icon(Icons.folder),
                             title: Text(folder.filename),
                             trailing: const Icon(Icons.chevron_right),
-                            onTap: () {
-                              setState(
-                                  () => _currentParent = folder.id);
-                              _loadFolders();
-                            },
+                            onTap: () => _goInto(folder.id),
                           );
                         },
                       ),
@@ -566,6 +572,10 @@ class _FileSearchDelegate extends SearchDelegate<void> {
   _FileSearchDelegate(this._ref);
   final WidgetRef _ref;
 
+  Timer? _debounce;
+  String _lastQuery = '';
+  Future<List<Map<String, dynamic>>>? _resultsFuture;
+
   @override
   List<Widget> buildActions(BuildContext context) => [
         IconButton(
@@ -577,23 +587,51 @@ class _FileSearchDelegate extends SearchDelegate<void> {
   @override
   Widget buildLeading(BuildContext context) => IconButton(
         icon: const Icon(Icons.arrow_back),
-        onPressed: () => close(context, null),
+        onPressed: () {
+          _debounce?.cancel();
+          close(context, null);
+        },
       );
 
   @override
-  Widget buildResults(BuildContext context) => _buildSearchResults();
+  Widget buildResults(BuildContext context) => _buildSearchResults(context);
 
   @override
-  Widget buildSuggestions(BuildContext context) =>
-      query.length < 2
-          ? const Center(child: Text('Type to search files...'))
-          : _buildSearchResults();
+  Widget buildSuggestions(BuildContext context) {
+    if (query.length < 2) {
+      return const Center(child: Text('Type to search files...'));
+    }
 
-  Widget _buildSearchResults() {
-    final client = _ref.read(apiClientProvider);
+    if (query != _lastQuery) {
+      _debounce?.cancel();
+      _debounce = Timer(const Duration(milliseconds: 400), () {
+        _lastQuery = query;
+        _resultsFuture = _ref.read(apiClientProvider).searchFiles(query);
+        // Trigger rebuild by showing results
+        showResults(context);
+      });
+      // While debouncing, show previous results or loading
+      if (_resultsFuture == null) {
+        return const Center(child: CircularProgressIndicator());
+      }
+    }
+
+    return _buildSearchResults(context);
+  }
+
+  Widget _buildSearchResults(BuildContext context) {
+    if (query.length < 2) {
+      return const Center(child: Text('Type to search files...'));
+    }
+
+    // Ensure we have a future for the current query
+    if (_lastQuery != query) {
+      _lastQuery = query;
+      _resultsFuture = _ref.read(apiClientProvider).searchFiles(query);
+    }
 
     return FutureBuilder<List<Map<String, dynamic>>>(
-      future: client.searchFiles(query),
+      future: _resultsFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -612,6 +650,7 @@ class _FileSearchDelegate extends SearchDelegate<void> {
               title: Text(file.filename),
               subtitle: file.isFolder ? null : Text(file.humanSize),
               onTap: () {
+                _debounce?.cancel();
                 if (file.isFolder) {
                   _ref.read(currentFolderProvider.notifier).state =
                       file.id;

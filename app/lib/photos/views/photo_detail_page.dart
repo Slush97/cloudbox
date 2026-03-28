@@ -17,12 +17,16 @@ class PhotoDetailPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final client = ref.watch(apiClientProvider);
 
-    final colors = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark
+        ? Theme.of(context).colorScheme.surface
+        : const Color(0xFF1A1A1A);
 
     return Scaffold(
-      backgroundColor: colors.surfaceContainerLowest,
+      backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: colors.surfaceContainerLowest,
+        backgroundColor: bgColor,
+        foregroundColor: Colors.white,
         elevation: 0,
         scrolledUnderElevation: 0,
         actions: [

@@ -935,7 +935,10 @@ name = "cloudbox-vision"
 version = "0.1.0"
 dependencies = [
  "cloudbox-db",
+ "image",
+ "ort",
  "scry-learn",
+ "scry-llm",
  "scry-vision",
  "serde",
  "serde_json",
@@ -1117,6 +1120,15 @@ checksum = "78c8292055d1c1df0cce5d180393dc8cce0abec0a7102adb6c7b1eef6016d60a"
 dependencies = [
  "generic-array",
  "typenum",
+]
+
+[[package]]
+name = "cudarc"
+version = "0.19.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f071cd6a7b5d51607df76aa2d426aaabc7a74bc6bdb885b8afa63a880572ad9b"
+dependencies = [
+ "libloading",
 ]
 
 [[package]]
@@ -2173,6 +2185,16 @@ checksum = "f12a681b7dd8ce12bff52488013ba614b869148d54dd79836ab85aafdd53f08d"
 dependencies = [
  "arbitrary",
  "cc",
+]
+
+[[package]]
+name = "libloading"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "754ca22de805bb5744484a5b151a9e1a8e837d5dc232c2d7d8c2e3492edc8b60"
+dependencies = [
+ "cfg-if",
+ "windows-link",
 ]
 
 [[package]]
@@ -3273,6 +3295,7 @@ name = "scry-llm"
 version = "0.1.0"
 dependencies = [
  "arrayvec",
+ "cudarc",
  "fastrand",
  "rayon",
  "thiserror",

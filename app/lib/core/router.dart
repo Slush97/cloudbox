@@ -6,7 +6,6 @@ import '../albums/views/albums_page.dart';
 import '../map/views/map_page.dart';
 import '../photos/views/gallery_page.dart';
 import '../files/views/files_page.dart';
-import '../search/views/search_page.dart';
 import '../settings/views/settings_page.dart';
 import '../trash/views/trash_page.dart';
 import 'auth/login_page.dart';
@@ -17,7 +16,6 @@ final _shellNavigatorKeys = [
   GlobalKey<NavigatorState>(debugLabel: 'photos'),
   GlobalKey<NavigatorState>(debugLabel: 'files'),
   GlobalKey<NavigatorState>(debugLabel: 'map'),
-  GlobalKey<NavigatorState>(debugLabel: 'search'),
   GlobalKey<NavigatorState>(debugLabel: 'settings'),
 ];
 
@@ -27,7 +25,8 @@ final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/photos',
     redirect: (context, state) {
-      final loggedIn = auth.token != null;
+      if (auth.isLoading) return null;
+      final loggedIn = auth.isAuthenticated;
       final loggingIn = state.matchedLocation == '/login';
 
       if (!loggedIn && !loggingIn) return '/login';
@@ -80,15 +79,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           StatefulShellBranch(
             navigatorKey: _shellNavigatorKeys[3],
-            routes: [
-              GoRoute(
-                path: '/search',
-                builder: (context, state) => const SearchPage(),
-              ),
-            ],
-          ),
-          StatefulShellBranch(
-            navigatorKey: _shellNavigatorKeys[4],
             routes: [
               GoRoute(
                 path: '/settings',

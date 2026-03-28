@@ -6,13 +6,16 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
 });
 
 class AuthState {
-  const AuthState({this.token, this.serverUrl});
+  const AuthState({this.token, this.serverUrl, this.isLoading = true});
   final String? token;
   final String? serverUrl;
+  final bool isLoading;
+
+  bool get isAuthenticated => token != null;
 }
 
 class AuthNotifier extends StateNotifier<AuthState> {
-  AuthNotifier() : super(const AuthState()) {
+  AuthNotifier() : super(const AuthState(isLoading: true)) {
     _loadSaved();
   }
 
@@ -21,7 +24,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> _loadSaved() async {
     final token = await _storage.read(key: 'token');
     final serverUrl = await _storage.read(key: 'server_url');
-    state = AuthState(token: token, serverUrl: serverUrl);
+    state = AuthState(token: token, serverUrl: serverUrl, isLoading: false);
   }
 
   Future<void> login({
@@ -30,12 +33,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }) async {
     await _storage.write(key: 'token', value: token);
     await _storage.write(key: 'server_url', value: serverUrl);
-    state = AuthState(token: token, serverUrl: serverUrl);
+    state = AuthState(token: token, serverUrl: serverUrl, isLoading: false);
   }
 
   Future<void> logout() async {
     await _storage.delete(key: 'token');
     await _storage.delete(key: 'server_url');
-    state = const AuthState();
+    state = const AuthState(isLoading: false);
   }
 }

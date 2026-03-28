@@ -5,6 +5,7 @@ import 'core/router.dart';
 import 'core/theme.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const ProviderScope(child: CloudboxApp()));
 }
 

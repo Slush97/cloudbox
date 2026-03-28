@@ -42,10 +42,19 @@ class _PhotoDetailPageState extends ConsumerState<PhotoDetailPage> {
     super.dispose();
   }
 
-  Photo get _currentPhoto => widget.photos[_currentIndex];
+  Photo get _currentPhoto {
+    final providerPhotos = ref.read(photosProvider).valueOrNull;
+    final basePhoto = widget.photos[_currentIndex];
+    if (providerPhotos == null) return basePhoto;
+    return providerPhotos.firstWhere(
+      (p) => p.id == basePhoto.id,
+      orElse: () => basePhoto,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(photosProvider); // rebuild when photos state changes
     final client = ref.watch(apiClientProvider);
     final colors = Theme.of(context).colorScheme;
 
@@ -131,7 +140,6 @@ class _PhotoDetailPageState extends ConsumerState<PhotoDetailPage> {
 
   Future<void> _toggleFavorite() async {
     await ref.read(photosProvider.notifier).toggleFavorite(_currentPhoto.id);
-    setState(() {});
   }
 
   Future<void> _confirmDelete(BuildContext context) async {

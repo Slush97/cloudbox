@@ -29,6 +29,7 @@ async fn main() -> anyhow::Result<()> {
         .nest("/api/v1/photos", routes::photos::router())
         .nest("/api/v1/files", routes::files::router())
         .nest("/api/v1/stats", routes::stats::router())
+        .route("/s/{token}", get(routes::files::download_shared))
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http())
         .with_state(state);

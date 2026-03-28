@@ -3,17 +3,19 @@ use std::path::Path;
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::{clip, faces::FacePipeline, VisionError};
+use crate::{classify::ImageClassifier, clip, faces::FacePipeline, VisionError};
 
 /// Full vision processing pipeline for a single photo.
 ///
 /// 1. Generate CLIP embedding (semantic search)
 /// 2. Detect faces + extract embeddings (if pipeline available)
-/// 3. Store all results in the database
+/// 3. Auto-tag with image classifier (if loaded)
+/// 4. Store all results in the database
 pub async fn process_photo(
     photo_id: Uuid,
     path: &Path,
     face_pipeline: Option<&FacePipeline>,
+    classifier: Option<&ImageClassifier>,
     db: &PgPool,
 ) -> Result<(), VisionError> {
     let image_data = tokio::fs::read(path).await?;
@@ -25,20 +27,21 @@ pub async fn process_photo(
     // Store CLIP embedding
     store_clip_embedding(db, photo_id, &clip_embedding).await?;
 
-    // 2. Face detection + embedding
-    if let Some(pipeline) = face_pipeline {
-        let rgb = match decode_to_rgb(&image_data) {
-            Ok(img) => img,
-            Err(e) => {
-                tracing::warn!(%photo_id, "skipping face detection: {e}");
-                return Ok(());
-            }
-        };
-        let width = rgb.width();
-        let height = rgb.height();
-        let pixels = rgb.into_raw();
+    // Decode image once for face detection + classification
+    let rgb = match decode_to_rgb(&image_data) {
+        Ok(img) => Some(img),
+        Err(e) => {
+            tracing::warn!(%photo_id, "image decode failed, skipping faces + classification: {e}");
+            None
+        }
+    };
 
-        let faces = pipeline.detect_and_embed(&pixels, width, height, 0.5)?;
+    // 2. Face detection + embedding
+    if let (Some(pipeline), Some(ref img)) = (face_pipeline, &rgb) {
+        let width = img.width();
+        let height = img.height();
+
+        let faces = pipeline.detect_and_embed(img.as_raw(), width, height, 0.5)?;
         tracing::debug!(%photo_id, face_count = faces.len(), "faces detected and embedded");
 
         for face in &faces {
@@ -58,6 +61,19 @@ pub async fn process_photo(
                 ),
                 Err(e) => tracing::warn!("auto-recluster failed: {e}"),
             }
+        }
+    }
+
+    // 3. Auto-tagging via image classifier
+    if let (Some(clf), Some(ref img)) = (classifier, &rgb) {
+        match clf.auto_tag(img.as_raw(), img.width(), img.height(), 5, 0.15) {
+            Ok(tags) => {
+                for (tag_name, confidence) in &tags {
+                    cloudbox_db::tags::add_tag(db, photo_id, tag_name, *confidence, "auto").await?;
+                }
+                tracing::debug!(%photo_id, tag_count = tags.len(), "auto-tags generated");
+            }
+            Err(e) => tracing::warn!(%photo_id, "auto-tagging failed: {e}"),
         }
     }
 

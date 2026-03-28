@@ -11,6 +11,7 @@ pub struct AppState {
     pub storage_path: String,
     pub auth_disabled: bool,
     pub face_pipeline: Option<Arc<cloudbox_vision::faces::FacePipeline>>,
+    pub classifier: Option<Arc<cloudbox_vision::classify::ImageClassifier>>,
 }
 
 impl AppState {
@@ -19,6 +20,7 @@ impl AppState {
         sqlx::migrate!("../../migrations").run(&db).await?;
 
         let face_pipeline = try_load_face_pipeline(config.models_path.as_deref());
+        let classifier = try_load_classifier(config.models_path.as_deref());
 
         Ok(Self {
             db,
@@ -26,6 +28,7 @@ impl AppState {
             storage_path: config.storage_path.clone(),
             auth_disabled: config.auth_disabled,
             face_pipeline,
+            classifier,
         })
     }
 }
@@ -66,6 +69,44 @@ fn try_load_face_pipeline(
     #[cfg(not(feature = "ml"))]
     {
         tracing::info!("face pipeline not available (ml feature disabled)");
+        None
+    }
+}
+
+/// Attempt to load MobileNet v2 ONNX model for auto-tagging.
+///
+/// Expects `{models_path}/mobilenet_v2.onnx`. Returns `None` if the path is
+/// unset or model is missing — auto-tagging will be silently disabled.
+fn try_load_classifier(
+    models_path: Option<&str>,
+) -> Option<Arc<cloudbox_vision::classify::ImageClassifier>> {
+    let dir = models_path?;
+    let model_path = std::path::Path::new(dir).join("mobilenet_v2.onnx");
+
+    if !model_path.exists() {
+        tracing::info!(
+            "classifier model not found at {dir}/mobilenet_v2.onnx — auto-tagging disabled"
+        );
+        return None;
+    }
+
+    #[cfg(feature = "ml")]
+    {
+        match cloudbox_vision::classify::ImageClassifier::from_onnx(&model_path) {
+            Ok(clf) => {
+                tracing::info!("image classifier loaded from {dir}");
+                Some(Arc::new(clf))
+            }
+            Err(e) => {
+                tracing::warn!("failed to load classifier: {e} — auto-tagging disabled");
+                None
+            }
+        }
+    }
+
+    #[cfg(not(feature = "ml"))]
+    {
+        tracing::info!("classifier not available (ml feature disabled)");
         None
     }
 }

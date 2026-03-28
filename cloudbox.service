@@ -1,0 +1,17 @@
+[Unit]
+Description=Cloudbox server
+After=network.target docker.service
+Wants=docker.service
+
+[Service]
+Type=simple
+User=esoc
+WorkingDirectory=/home/esoc/cloudbox
+ExecStartPre=/usr/bin/docker compose up -d --wait
+ExecStart=/home/esoc/cloudbox/target/release/cloudbox
+Restart=on-failure
+RestartSec=5
+EnvironmentFile=/home/esoc/cloudbox/.env
+
+[Install]
+WantedBy=multi-user.target

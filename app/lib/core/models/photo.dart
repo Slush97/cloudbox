@@ -10,6 +10,10 @@ class Photo {
     this.cameraModel,
     this.width,
     this.height,
+    this.fileSize,
+    this.mediaType = 'photo',
+    this.durationSecs,
+    this.videoCodec,
     required this.createdAt,
   });
 
@@ -24,6 +28,10 @@ class Photo {
         cameraModel: json['camera_model'] as String?,
         width: json['width'] as int?,
         height: json['height'] as int?,
+        fileSize: json['file_size'] as int?,
+        mediaType: json['media_type'] as String? ?? 'photo',
+        durationSecs: (json['duration_secs'] as num?)?.toDouble(),
+        videoCodec: json['video_codec'] as String?,
         createdAt: DateTime.parse(json['created_at'] as String),
       );
 
@@ -37,7 +45,30 @@ class Photo {
   final String? cameraModel;
   final int? width;
   final int? height;
+  final int? fileSize;
+  final String mediaType;
+  final double? durationSecs;
+  final String? videoCodec;
   final DateTime createdAt;
 
+  bool get isVideo => mediaType == 'video';
+
   DateTime get displayDate => takenAt ?? createdAt;
+
+  String? get humanDuration {
+    if (durationSecs == null) return null;
+    final total = durationSecs!.round();
+    final m = total ~/ 60;
+    final s = total % 60;
+    return '${m}:${s.toString().padLeft(2, '0')}';
+  }
+
+  String? get humanSize {
+    if (fileSize == null) return null;
+    final s = fileSize!;
+    if (s < 1024) return '$s B';
+    if (s < 1024 * 1024) return '${(s / 1024).toStringAsFixed(1)} KB';
+    if (s < 1024 * 1024 * 1024) return '${(s / (1024 * 1024)).toStringAsFixed(1)} MB';
+    return '${(s / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+  }
 }

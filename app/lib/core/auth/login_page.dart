@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../api/client.dart';
 import '../providers/auth_provider.dart';
@@ -100,6 +101,136 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     }
   }
 
+  void _showSetupGuide(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.7,
+        maxChildSize: 0.9,
+        builder: (context, scrollController) => SingleChildScrollView(
+          controller: scrollController,
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 24),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Text('Setup your Cloudbox server',
+                  style: Theme.of(context).textTheme.headlineSmall),
+              const SizedBox(height: 16),
+              Text(
+                'Cloudbox is self-hosted — you run the server on your own computer or VPS. '
+                'Your photos and files stay on your hardware.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 24),
+              _guideStep(context, '1', 'Install Docker',
+                  'Download and install Docker Desktop for your operating system.'),
+              const SizedBox(height: 8),
+              FilledButton.tonal(
+                onPressed: () => launchUrl(
+                  Uri.parse('https://docs.docker.com/get-docker/'),
+                  mode: LaunchMode.externalApplication,
+                ),
+                child: const Text('Get Docker'),
+              ),
+              const SizedBox(height: 20),
+              _guideStep(context, '2', 'Download Cloudbox',
+                  'Open a terminal and run:'),
+              const SizedBox(height: 8),
+              _codeBlock(context,
+                  'git clone https://github.com/Slush97/cloudbox.git\n'
+                  'cd cloudbox'),
+              const SizedBox(height: 20),
+              _guideStep(context, '3', 'Start the server',
+                  'Run this single command:'),
+              const SizedBox(height: 8),
+              _codeBlock(context,
+                  'docker compose -f docker-compose.prod.yml up -d'),
+              const SizedBox(height: 20),
+              _guideStep(context, '4', 'Connect',
+                  'Enter your server address above (usually http://localhost:3000) '
+                  'and create your account.'),
+              const SizedBox(height: 20),
+              _guideStep(context, '5', 'Access from anywhere (optional)',
+                  'Install Tailscale on your server and phone for secure '
+                  'access from any network.'),
+              const SizedBox(height: 8),
+              FilledButton.tonal(
+                onPressed: () => launchUrl(
+                  Uri.parse('https://tailscale.com/download'),
+                  mode: LaunchMode.externalApplication,
+                ),
+                child: const Text('Get Tailscale'),
+              ),
+              const SizedBox(height: 32),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _guideStep(
+      BuildContext context, String number, String title, String body) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        CircleAvatar(
+          radius: 14,
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          child: Text(number,
+              style: TextStyle(
+                  color: Theme.of(context).colorScheme.onPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold)),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title,
+                  style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: 4),
+              Text(body, style: Theme.of(context).textTheme.bodySmall),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _codeBlock(BuildContext context, String code) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: SelectableText(
+        code,
+        style: TextStyle(
+          fontFamily: 'monospace',
+          fontSize: 13,
+          color: Theme.of(context).colorScheme.onSurface,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -198,6 +329,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   const SizedBox(height: 12),
                   Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
                 ],
+                const SizedBox(height: 24),
+                TextButton.icon(
+                  onPressed: () => _showSetupGuide(context),
+                  icon: const Icon(Icons.help_outline, size: 18),
+                  label: const Text('Need a server? Setup guide'),
+                ),
               ],
             ),
           ),

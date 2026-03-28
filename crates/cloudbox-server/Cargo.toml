@@ -39,4 +39,6 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 dotenvy.workspace = true
 anyhow = "1"
+bytes = "1"
+mime_guess = "2"
 sqlx.workspace = true

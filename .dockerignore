@@ -1,0 +1,7 @@
+target/
+data/
+app/build/
+app/.dart_tool/
+.env
+.env.prod
+*.apk

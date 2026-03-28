@@ -17,6 +17,10 @@ pub struct Photo {
     pub camera_model: Option<String>,
     pub width: Option<i32>,
     pub height: Option<i32>,
+    pub file_size: Option<i64>,
+    pub media_type: String,
+    pub duration_secs: Option<f32>,
+    pub video_codec: Option<String>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -41,11 +45,16 @@ pub async fn insert(
     storage_key: &str,
     phash: Option<u64>,
     meta: Option<PhotoMeta>,
+    file_size: i64,
+    media_type: &str,
+    duration_secs: Option<f32>,
+    video_codec: Option<&str>,
 ) -> Result<Photo, sqlx::Error> {
     let m = meta.unwrap_or_default();
     sqlx::query_as(
-        r#"INSERT INTO photos (id, filename, storage_key, phash, taken_at, latitude, longitude, camera_make, camera_model, width, height)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        r#"INSERT INTO photos (id, filename, storage_key, phash, taken_at, latitude, longitude,
+           camera_make, camera_model, width, height, file_size, media_type, duration_secs, video_codec)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
            RETURNING *"#,
     )
     .bind(id)
@@ -59,6 +68,10 @@ pub async fn insert(
     .bind(m.camera_model)
     .bind(m.width)
     .bind(m.height)
+    .bind(file_size)
+    .bind(media_type)
+    .bind(duration_secs)
+    .bind(video_codec)
     .fetch_one(pool)
     .await
 }

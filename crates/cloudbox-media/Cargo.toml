@@ -14,5 +14,7 @@ uuid.workspace = true
 chrono.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 tokio.workspace = true
 webp = "0.3"

@@ -51,8 +51,20 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 dotenvy = "0.15"
 
-# Your crates — vision/ML pipeline
-scry-learn = { path = "../esolearn/crates/scry-learn" }
-scry-llm = { path = "../esolearn/crates/scry-llm" }
-scry-vision = { path = "../esolearn/crates/scry-vision", default-features = false }
-scry-gpu = { path = "../esolearn/crates/scry-gpu" }
+# ML pipeline crates (vendored from esolearn)
+scry-learn = { path = "crates/scry-learn" }
+scry-llm = { path = "crates/scry-llm" }
+scry-vision = { path = "crates/scry-vision", default-features = false }
+scry-gpu = { path = "crates/scry-gpu" }
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+cast_possible_truncation = "allow"
+cast_precision_loss = "allow"
+many_single_char_names = "allow"
+must_use_candidate = "allow"
+missing_panics_doc = "allow"
+missing_errors_doc = "allow"
+similar_names = "allow"
+module_name_repetitions = "allow"
+return_self_not_must_use = "allow"

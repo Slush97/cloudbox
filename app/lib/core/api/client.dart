@@ -78,6 +78,11 @@ class ApiClient {
     return token != null ? '$url?token=$token' : url;
   }
 
+  String videoStreamUrl(String photoId) {
+    final url = '$baseUrl/api/v1/photos/$photoId/stream';
+    return token != null ? '$url?token=$token' : url;
+  }
+
   Future<void> deletePhoto(String id) async {
     await _dio.delete<void>('/photos/$id');
   }
@@ -94,6 +99,20 @@ class ApiClient {
       queryParameters: {'q': query, 'limit': limit},
     );
     return res.data!.cast<Map<String, dynamic>>();
+  }
+
+  // Tags
+  Future<List<Map<String, dynamic>>> getPhotoTags(String photoId) async {
+    final res = await _dio.get<List<dynamic>>('/photos/$photoId/tags');
+    return res.data!.cast<Map<String, dynamic>>();
+  }
+
+  Future<void> addPhotoTag(String photoId, String name) async {
+    await _dio.post<void>('/photos/$photoId/tags', data: {'name': name});
+  }
+
+  Future<void> removePhotoTag(String photoId, int tagId) async {
+    await _dio.delete<void>('/photos/$photoId/tags/$tagId');
   }
 
   // Faces
@@ -118,17 +137,58 @@ class ApiClient {
   }
 
   // Files
-  Future<List<Map<String, dynamic>>> listFiles() async {
-    final res = await _dio.get<List<dynamic>>('/files');
+  Future<List<Map<String, dynamic>>> listFiles({String? parentId}) async {
+    final res = await _dio.get<List<dynamic>>(
+      '/files',
+      queryParameters: {if (parentId != null) 'parent_id': parentId},
+    );
     return res.data!.cast<Map<String, dynamic>>();
   }
 
-  Future<Map<String, dynamic>> uploadFile(Uint8List data, String filename) async {
+  Future<Map<String, dynamic>> uploadFile(Uint8List data, String filename, {String? parentId}) async {
     final formData = FormData.fromMap({
       'file': MultipartFile.fromBytes(data, filename: filename),
+      if (parentId != null) 'parent_id': parentId,
     });
     final res = await _dio.post<Map<String, dynamic>>('/files/upload', data: formData);
     return res.data!;
+  }
+
+  Future<Map<String, dynamic>> createFolder(String name, {String? parentId}) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/files/folder',
+      data: {'name': name, if (parentId != null) 'parent_id': parentId},
+    );
+    return res.data!;
+  }
+
+  Future<Map<String, dynamic>> renameFile(String id, String newName) async {
+    final res = await _dio.put<Map<String, dynamic>>(
+      '/files/$id/rename',
+      data: {'name': newName},
+    );
+    return res.data!;
+  }
+
+  Future<Map<String, dynamic>> moveFile(String id, {String? parentId}) async {
+    final res = await _dio.put<Map<String, dynamic>>(
+      '/files/$id/move',
+      data: {'parent_id': parentId},
+    );
+    return res.data!;
+  }
+
+  Future<List<Map<String, dynamic>>> searchFiles(String query) async {
+    final res = await _dio.get<List<dynamic>>(
+      '/files/search',
+      queryParameters: {'q': query},
+    );
+    return res.data!.cast<Map<String, dynamic>>();
+  }
+
+  Future<List<Map<String, dynamic>>> getAncestors(String id) async {
+    final res = await _dio.get<List<dynamic>>('/files/$id/ancestors');
+    return res.data!.cast<Map<String, dynamic>>();
   }
 
   Future<void> deleteFile(String id) async {
@@ -142,4 +202,24 @@ class ApiClient {
   String fileDownloadUrl(String fileId) {
     return '$baseUrl/api/v1/files/$fileId';
   }
+
+  // Share links
+  Future<Map<String, dynamic>> createShareLink(String fileId, {int? expiresHours}) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/files/$fileId/share',
+      data: {'expires_hours': expiresHours},
+    );
+    return res.data!;
+  }
+
+  Future<List<Map<String, dynamic>>> listShareLinks(String fileId) async {
+    final res = await _dio.get<List<dynamic>>('/files/$fileId/shares');
+    return res.data!.cast<Map<String, dynamic>>();
+  }
+
+  Future<void> deleteShareLink(String fileId, String shareId) async {
+    await _dio.delete<void>('/files/$fileId/share/$shareId');
+  }
+
+  String shareUrl(String token) => '$baseUrl/s/$token';
 }

@@ -1,0 +1,6 @@
+ALTER TABLE files ADD COLUMN parent_id UUID REFERENCES files(id) ON DELETE CASCADE;
+ALTER TABLE files ADD COLUMN mime_type TEXT;
+ALTER TABLE files ADD COLUMN is_folder BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE files ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
+
+CREATE INDEX idx_files_parent ON files (parent_id);

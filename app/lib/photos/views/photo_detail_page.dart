@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:video_player/video_player.dart';
 
 import '../../core/api/client.dart';
 import '../../core/models/photo.dart';
+import '../../core/models/photo_tag.dart';
 import '../providers/photos_provider.dart';
 
 class PhotoDetailPage extends ConsumerStatefulWidget {
@@ -74,6 +76,12 @@ class _PhotoDetailPageState extends ConsumerState<PhotoDetailPage> {
         onPageChanged: (index) => setState(() => _currentIndex = index),
         itemBuilder: (context, index) {
           final photo = widget.photos[index];
+          if (photo.isVideo) {
+            return _VideoPlayerView(
+              streamUrl: client.videoStreamUrl(photo.id),
+              thumbnailUrl: client.thumbnailUrl(photo.id, size: 'lg'),
+            );
+          }
           return InteractiveViewer(
             minScale: 1.0,
             maxScale: 5.0,
@@ -127,39 +135,348 @@ class _PhotoDetailPageState extends ConsumerState<PhotoDetailPage> {
 
   void _showInfo(BuildContext context) {
     final photo = _currentPhoto;
+    final client = ref.read(apiClientProvider);
     final dateFormat = DateFormat.yMMMMd().add_jm();
 
     showModalBottomSheet<void>(
       context: context,
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(photo.filename,
-                style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 12),
-            _InfoRow('Date', dateFormat.format(photo.displayDate)),
-            if (photo.cameraMake != null || photo.cameraModel != null)
-              _InfoRow(
-                  'Camera',
-                  [photo.cameraMake, photo.cameraModel]
-                      .whereType<String>()
-                      .join(' ')),
-            if (photo.width != null && photo.height != null)
-              _InfoRow(
-                  'Resolution', '${photo.width} x ${photo.height}'),
-            if (photo.latitude != null && photo.longitude != null)
-              _InfoRow(
-                  'Location',
-                  '${photo.latitude!.toStringAsFixed(4)}, '
-                  '${photo.longitude!.toStringAsFixed(4)}'),
-            const SizedBox(height: 16),
-          ],
-        ),
+      isScrollControlled: true,
+      builder: (context) => _PhotoInfoSheet(
+        photo: photo,
+        client: client,
+        dateFormat: dateFormat,
       ),
     );
+  }
+}
+
+class _PhotoInfoSheet extends StatefulWidget {
+  const _PhotoInfoSheet({
+    required this.photo,
+    required this.client,
+    required this.dateFormat,
+  });
+
+  final Photo photo;
+  final ApiClient client;
+  final DateFormat dateFormat;
+
+  @override
+  State<_PhotoInfoSheet> createState() => _PhotoInfoSheetState();
+}
+
+class _PhotoInfoSheetState extends State<_PhotoInfoSheet> {
+  late Future<List<PhotoTag>> _tagsFuture;
+  final _tagController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _tagsFuture = _loadTags();
+  }
+
+  @override
+  void dispose() {
+    _tagController.dispose();
+    super.dispose();
+  }
+
+  Future<List<PhotoTag>> _loadTags() async {
+    final data = await widget.client.getPhotoTags(widget.photo.id);
+    return data.map(PhotoTag.fromJson).toList();
+  }
+
+  Future<void> _addTag() async {
+    final name = _tagController.text.trim().toLowerCase();
+    if (name.isEmpty) return;
+    await widget.client.addPhotoTag(widget.photo.id, name);
+    _tagController.clear();
+    setState(() => _tagsFuture = _loadTags());
+  }
+
+  Future<void> _removeTag(int tagId) async {
+    await widget.client.removePhotoTag(widget.photo.id, tagId);
+    setState(() => _tagsFuture = _loadTags());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final photo = widget.photo;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+          24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(photo.filename,
+              style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 12),
+          _InfoRow('Date', widget.dateFormat.format(photo.displayDate)),
+          if (photo.cameraMake != null || photo.cameraModel != null)
+            _InfoRow(
+                'Camera',
+                [photo.cameraMake, photo.cameraModel]
+                    .whereType<String>()
+                    .join(' ')),
+          if (photo.width != null && photo.height != null)
+            _InfoRow('Resolution', '${photo.width} x ${photo.height}'),
+          if (photo.humanSize != null)
+            _InfoRow('Size', photo.humanSize!),
+          if (photo.isVideo && photo.humanDuration != null)
+            _InfoRow('Duration', photo.humanDuration!),
+          if (photo.videoCodec != null)
+            _InfoRow('Codec', photo.videoCodec!),
+          if (photo.latitude != null && photo.longitude != null)
+            _InfoRow(
+                'Location',
+                '${photo.latitude!.toStringAsFixed(4)}, '
+                '${photo.longitude!.toStringAsFixed(4)}'),
+          const SizedBox(height: 16),
+          Text('Tags', style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 8),
+          FutureBuilder<List<PhotoTag>>(
+            future: _tagsFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const SizedBox(
+                  height: 32,
+                  child: Center(
+                      child: SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2))),
+                );
+              }
+              final tags = snapshot.data ?? [];
+              if (tags.isEmpty) {
+                return Text('No tags yet',
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.outline));
+              }
+              return Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: tags
+                    .map((tag) => Chip(
+                          label: Text(tag.tagName),
+                          deleteIcon: const Icon(Icons.close, size: 16),
+                          onDeleted: () => _removeTag(tag.tagId),
+                          side: tag.isManual
+                              ? null
+                              : BorderSide(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .outlineVariant),
+                        ))
+                    .toList(),
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _tagController,
+                  decoration: const InputDecoration(
+                    hintText: 'Add tag...',
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                  onSubmitted: (_) => _addTag(),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                onPressed: _addTag,
+                icon: const Icon(Icons.add),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+}
+
+class _VideoPlayerView extends StatefulWidget {
+  const _VideoPlayerView({
+    required this.streamUrl,
+    required this.thumbnailUrl,
+  });
+
+  final String streamUrl;
+  final String thumbnailUrl;
+
+  @override
+  State<_VideoPlayerView> createState() => _VideoPlayerViewState();
+}
+
+class _VideoPlayerViewState extends State<_VideoPlayerView> {
+  VideoPlayerController? _controller;
+  bool _initialized = false;
+  bool _showControls = true;
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _initPlayer() async {
+    final controller = VideoPlayerController.networkUrl(
+      Uri.parse(widget.streamUrl),
+    );
+    _controller = controller;
+
+    try {
+      await controller.initialize();
+      if (mounted) {
+        setState(() => _initialized = true);
+        await controller.play();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Video playback error: $e')),
+        );
+      }
+    }
+  }
+
+  void _togglePlayPause() {
+    final c = _controller;
+    if (c == null || !_initialized) return;
+    setState(() {
+      if (c.value.isPlaying) {
+        c.pause();
+      } else {
+        c.play();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_initialized) {
+      // Show poster frame with play button
+      return GestureDetector(
+        onTap: _initPlayer,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            CachedNetworkImage(
+              imageUrl: widget.thumbnailUrl,
+              fit: BoxFit.contain,
+              alignment: Alignment.center,
+            ),
+            Center(
+              child: Container(
+                width: 72,
+                height: 72,
+                decoration: const BoxDecoration(
+                  color: Colors.black54,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.play_arrow,
+                    color: Colors.white, size: 48),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final controller = _controller!;
+
+    return GestureDetector(
+      onTap: () => setState(() => _showControls = !_showControls),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Center(
+            child: AspectRatio(
+              aspectRatio: controller.value.aspectRatio,
+              child: VideoPlayer(controller),
+            ),
+          ),
+          if (_showControls) ...[
+            // Play/pause overlay
+            Center(
+              child: IconButton(
+                iconSize: 64,
+                icon: Icon(
+                  controller.value.isPlaying
+                      ? Icons.pause_circle_filled
+                      : Icons.play_circle_filled,
+                  color: Colors.white70,
+                ),
+                onPressed: _togglePlayPause,
+              ),
+            ),
+            // Seek bar at bottom
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 16,
+              child: ValueListenableBuilder<VideoPlayerValue>(
+                valueListenable: controller,
+                builder: (context, value, _) {
+                  final pos = value.position.inMilliseconds;
+                  final dur = value.duration.inMilliseconds;
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          trackHeight: 3,
+                          thumbShape: const RoundSliderThumbShape(
+                              enabledThumbRadius: 6),
+                        ),
+                        child: Slider(
+                          value: dur > 0 ? pos / dur : 0,
+                          onChanged: (v) {
+                            controller.seekTo(Duration(
+                                milliseconds: (v * dur).round()));
+                          },
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Row(
+                          mainAxisAlignment:
+                              MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(_formatDuration(value.position),
+                                style: const TextStyle(
+                                    color: Colors.white70, fontSize: 12)),
+                            Text(_formatDuration(value.duration),
+                                style: const TextStyle(
+                                    color: Colors.white70, fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _formatDuration(Duration d) {
+    final m = d.inMinutes;
+    final s = d.inSeconds % 60;
+    return '${m}:${s.toString().padLeft(2, '0')}';
   }
 }
 

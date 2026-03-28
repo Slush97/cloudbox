@@ -1,11 +1,12 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image_picker/image_picker.dart';
 
 import '../../core/api/client.dart';
 import '../../core/models/photo.dart';
 import '../providers/photos_provider.dart';
+import '../widgets/date_scroller.dart';
+import 'device_photos_page.dart';
 import 'photo_detail_page.dart';
 
 class GalleryPage extends ConsumerWidget {
@@ -24,36 +25,50 @@ class GalleryPage extends ConsumerWidget {
         data: (list) => _PhotoGrid(photos: list, client: client),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _pickAndUpload(ref),
+        onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => const DevicePhotosPage(),
+          ),
+        ),
         child: const Icon(Icons.add_a_photo),
       ),
     );
   }
-
-  Future<void> _pickAndUpload(WidgetRef ref) async {
-    final picker = ImagePicker();
-    final files = await picker.pickMultiImage();
-    if (files.isEmpty) return;
-
-    final notifier = ref.read(photosProvider.notifier);
-    for (final file in files) {
-      final bytes = await file.readAsBytes();
-      await notifier.upload(bytes, file.name);
-    }
-  }
 }
 
-class _PhotoGrid extends ConsumerWidget {
+class _PhotoGrid extends ConsumerStatefulWidget {
   const _PhotoGrid({required this.photos, required this.client});
 
   final List<Photo> photos;
   final ApiClient client;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    if (photos.isEmpty) {
+  ConsumerState<_PhotoGrid> createState() => _PhotoGridState();
+}
+
+class _PhotoGridState extends ConsumerState<_PhotoGrid> {
+  final _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.photos.isEmpty) {
       return const Center(child: Text('No photos yet. Tap + to upload.'));
     }
+
+    final groups =
+        groupByMonth(widget.photos, (p) => p.displayDate);
+    final sections = buildSections(groups);
+    final crossAxisCount =
+        MediaQuery.sizeOf(context).width >= 800 ? 5 : 3;
+
+    // Build a flat index for photo detail navigation
+    final allPhotos = widget.photos;
 
     return RefreshIndicator(
       onRefresh: () => ref.read(photosProvider.notifier).load(),
@@ -65,35 +80,93 @@ class _PhotoGrid extends ConsumerWidget {
           }
           return false;
         },
-        child: GridView.builder(
-        padding: const EdgeInsets.all(4),
-        gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: MediaQuery.sizeOf(context).width >= 800 ? 200 : 120,
-          crossAxisSpacing: 4,
-          mainAxisSpacing: 4,
-        ),
-        itemCount: photos.length,
-        itemBuilder: (context, index) {
-          final photo = photos[index];
-          return GestureDetector(
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => PhotoDetailPage(
-                  photos: photos,
-                  initialIndex: index,
+        child: DateScroller(
+          controller: _scrollController,
+          sectionKeys: sections,
+          child: CustomScrollView(
+            controller: _scrollController,
+            slivers: [
+              for (final (label, items) in groups) ...[
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
+                    child: Text(label,
+                        style: Theme.of(context).textTheme.titleSmall),
+                  ),
                 ),
-              ),
-            ),
-            child: CachedNetworkImage(
-              imageUrl: client.thumbnailUrl(photo.id, size: 'md'),
-              fit: BoxFit.cover,
-              placeholder: (_, __) => ColoredBox(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              ),
-              errorWidget: (_, __, ___) => const Icon(Icons.broken_image),
-            ),
-          );
-        },
+                SliverGrid(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
+                    crossAxisSpacing: 4,
+                    mainAxisSpacing: 4,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final photo = items[index];
+                      final globalIndex = allPhotos.indexOf(photo);
+
+                      return GestureDetector(
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => PhotoDetailPage(
+                              photos: allPhotos,
+                              initialIndex: globalIndex,
+                            ),
+                          ),
+                        ),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            CachedNetworkImage(
+                              imageUrl: widget.client
+                                  .thumbnailUrl(photo.id, size: 'md'),
+                              fit: BoxFit.cover,
+                              placeholder: (_, __) => ColoredBox(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHighest,
+                              ),
+                              errorWidget: (_, __, ___) =>
+                                  const Icon(Icons.broken_image),
+                            ),
+                            if (photo.isVideo)
+                              Positioned(
+                                bottom: 4,
+                                right: 4,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black54,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.play_arrow,
+                                          color: Colors.white, size: 14),
+                                      if (photo.humanDuration != null) ...[
+                                        const SizedBox(width: 2),
+                                        Text(photo.humanDuration!,
+                                            style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 11)),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    },
+                    childCount: items.length,
+                  ),
+                ),
+              ],
+              const SliverPadding(padding: EdgeInsets.only(bottom: 80)),
+            ],
+          ),
         ),
       ),
     );

@@ -2,5 +2,13 @@
 /data
 /models
 .env
+.env.prod
+.env.local
+.env.*
 *.swp
 *.onnx
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json

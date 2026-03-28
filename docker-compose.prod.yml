@@ -1,7 +1,11 @@
 ## Cloudbox — self-hosted Google Photos + Drive replacement
 ##
 ## Quick start:
-##   docker compose -f docker-compose.prod.yml up -d
+##   ./docker-setup.sh
+##
+## Or manually:
+##   1. Copy .env.example to .env.prod, fill in JWT_SECRET and DB_PASSWORD
+##   2. docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 ##
 ## Then open http://localhost:3000 and create your account.
 
@@ -11,7 +15,7 @@ services:
     environment:
       POSTGRES_DB: cloudbox
       POSTGRES_USER: cloudbox
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-cloudbox}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env.prod or environment}
     volumes:
       - pgdata:/var/lib/postgresql/data
     restart: unless-stopped
@@ -21,8 +25,8 @@ services:
     ports:
       - "${CLOUDBOX_PORT:-3000}:3000"
     environment:
-      DATABASE_URL: postgres://cloudbox:${DB_PASSWORD:-cloudbox}@postgres:5432/cloudbox
-      JWT_SECRET: ${JWT_SECRET:-change-me-to-a-random-string}
+      DATABASE_URL: postgres://cloudbox:${DB_PASSWORD}@postgres:5432/cloudbox
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env.prod or environment}
       STORAGE_PATH: /app/data
       MODELS_PATH: /app/models
       CLOUDBOX_HOST: 0.0.0.0

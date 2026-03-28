@@ -31,14 +31,22 @@ RUN apt-get update && \
         ffmpeg \
         ca-certificates \
         libssl3 \
-        libpq5 && \
+        libpq5 \
+        curl && \
     rm -rf /var/lib/apt/lists/*
+
+# Run as non-root user
+RUN groupadd -r cloudbox && useradd -r -g cloudbox -m cloudbox
 
 WORKDIR /app
 
 COPY --from=builder /build/target/release/cloudbox /usr/local/bin/cloudbox
 COPY --from=builder /build/migrations/ /app/migrations/
 COPY --from=models /models/ /app/models/
+
+RUN mkdir -p /app/data && chown -R cloudbox:cloudbox /app
+
+USER cloudbox
 
 ENV CLOUDBOX_HOST=0.0.0.0
 ENV CLOUDBOX_PORT=3000
@@ -47,5 +55,8 @@ ENV MODELS_PATH=/app/models
 
 EXPOSE 3000
 VOLUME ["/app/data"]
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:3000/health || exit 1
 
 CMD ["cloudbox"]

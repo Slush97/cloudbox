@@ -12,9 +12,21 @@ use scry_vision::image::ImageBuffer;
 use scry_vision::model::VisionModel;
 use scry_vision::models::{ArcFaceEmbedder, ScrfdDetector};
 use scry_vision::pipeline::{Detect, Embed};
-use scry_vision::transform::{Crop, ImageTransform};
+use scry_vision::transform::{AffineTransform, Crop, ImageTransform};
 
 use crate::VisionError;
+
+/// Standard ArcFace canonical landmark positions for a 112×112 aligned face.
+///
+/// Order: left eye, right eye, nose tip, left mouth corner, right mouth corner.
+/// Source: InsightFace ArcFace training alignment template.
+const ARCFACE_TEMPLATE: [[f32; 2]; 5] = [
+    [38.2946, 51.6963],
+    [73.5318, 51.5014],
+    [56.0252, 71.7366],
+    [41.5493, 92.3655],
+    [70.7299, 92.2041],
+];
 
 /// Detected face with normalized bounding box.
 pub struct FaceDetection {
@@ -112,7 +124,11 @@ impl FacePipeline {
 
     /// Detect faces and extract embeddings in one pass.
     ///
-    /// For each detected face: crop → resize to 112×112 → ArcFace embed.
+    /// When SCRFD provides facial landmarks, faces are aligned to the canonical
+    /// ArcFace template via a similarity transform before embedding. This is
+    /// critical for embedding quality — ArcFace was trained on aligned faces.
+    ///
+    /// Falls back to crop + resize when landmarks are unavailable.
     pub fn detect_and_embed(
         &self,
         image_data: &[u8],
@@ -137,21 +153,22 @@ impl FacePipeline {
         let mut results = Vec::with_capacity(detections.len());
 
         for det in &detections {
-            // Clamp bbox to image bounds
-            let x = (det.bbox.x1.max(0.0) as u32).min(width - 1);
-            let y = (det.bbox.y1.max(0.0) as u32).min(height - 1);
-            let x2 = (det.bbox.x2.max(0.0) as u32).min(width);
-            let y2 = (det.bbox.y2.max(0.0) as u32).min(height);
-            let cw = x2.saturating_sub(x).max(1);
-            let ch = y2.saturating_sub(y).max(1);
-
-            let crop = Crop::new(x, y, cw, ch)
-                .apply(&img)
-                .map_err(|e| VisionError::Inference(e.to_string()))?;
+            let face_img = if let Some(kps) = &det.keypoints {
+                if kps.len() == 5 {
+                    // Align face using landmark-based similarity transform
+                    align_face(&img, kps)?
+                } else {
+                    // Unexpected landmark count — fall back to crop
+                    crop_face(&img, det, width, height)?
+                }
+            } else {
+                // No landmarks — fall back to crop + resize
+                crop_face(&img, det, width, height)?
+            };
 
             let embedding = self
                 .embedder
-                .embed(&crop.data, crop.width, crop.height)
+                .embed(&face_img.data, face_img.width, face_img.height)
                 .map_err(|e| VisionError::Inference(e.to_string()))?;
 
             let bx = det.bbox.x1.max(0.0) / w;
@@ -169,6 +186,39 @@ impl FacePipeline {
     }
 }
 
+/// Align a face to the canonical ArcFace template using a similarity transform.
+///
+/// Computes the optimal rotation + uniform scale + translation that maps the
+/// detected 5-point landmarks to the standard template positions, then warps
+/// the source image to produce a 112×112 aligned face.
+fn align_face(
+    img: &ImageBuffer,
+    landmarks: &[[f32; 2]],
+) -> Result<ImageBuffer, VisionError> {
+    let transform = AffineTransform::estimate_similarity(landmarks, &ARCFACE_TEMPLATE, 112, 112);
+    transform
+        .apply(img)
+        .map_err(|e| VisionError::Inference(e.to_string()))
+}
+
+/// Crop a face region from the image (fallback when landmarks are unavailable).
+fn crop_face(
+    img: &ImageBuffer,
+    det: &scry_vision::postprocess::nms::Detection,
+    width: u32,
+    height: u32,
+) -> Result<ImageBuffer, VisionError> {
+    let x = (det.bbox.x1.max(0.0) as u32).min(width - 1);
+    let y = (det.bbox.y1.max(0.0) as u32).min(height - 1);
+    let x2 = (det.bbox.x2.max(0.0) as u32).min(width);
+    let y2 = (det.bbox.y2.max(0.0) as u32).min(height);
+    let cw = x2.saturating_sub(x).max(1);
+    let ch = y2.saturating_sub(y).max(1);
+    Crop::new(x, y, cw, ch)
+        .apply(img)
+        .map_err(|e| VisionError::Inference(e.to_string()))
+}
+
 /// Cluster face embeddings into identity groups using HDBSCAN.
 ///
 /// Returns one label per embedding: `Some(cluster_id)` or `None` for noise.
@@ -177,6 +227,7 @@ impl FacePipeline {
 pub fn cluster_faces(embeddings: &[Vec<f32>]) -> Vec<Option<i32>> {
     use scry_learn::cluster::Hdbscan;
     use scry_learn::dataset::Dataset;
+    use scry_learn::neighbors::DistanceMetric;
 
     if embeddings.is_empty() {
         return vec![];
@@ -196,7 +247,14 @@ pub fn cluster_faces(embeddings: &[Vec<f32>]) -> Vec<Option<i32>> {
     let target = vec![0.0f64; n];
     let data = Dataset::new(features, target, names, "cluster");
 
-    let mut hdb = Hdbscan::new().min_cluster_size(2).min_samples(2);
+    // Cosine distance is the correct metric for L2-normalized face embeddings.
+    // Euclidean distance in 512-D suffers from the curse of dimensionality,
+    // while cosine distance captures angular separation which is what ArcFace
+    // embeddings are optimized for.
+    let mut hdb = Hdbscan::new()
+        .min_cluster_size(2)
+        .min_samples(2)
+        .metric(DistanceMetric::Cosine);
 
     match hdb.fit(&data) {
         Ok(()) => hdb
@@ -370,6 +428,26 @@ mod tests {
             .unwrap();
 
         assert!(faces.is_empty());
+    }
+
+    #[test]
+    fn align_face_produces_112x112() {
+        // 640×640 test image
+        let img = ImageBuffer::from_raw(test_image(640, 640), 640, 640, 3).unwrap();
+
+        // Landmarks centered in the image, roughly matching a 200px-wide face
+        let landmarks: [[f32; 2]; 5] = [
+            [280.0, 280.0], // left eye
+            [360.0, 280.0], // right eye
+            [320.0, 320.0], // nose
+            [290.0, 360.0], // left mouth
+            [350.0, 360.0], // right mouth
+        ];
+
+        let aligned = align_face(&img, &landmarks).unwrap();
+        assert_eq!(aligned.width, 112);
+        assert_eq!(aligned.height, 112);
+        assert_eq!(aligned.data.len(), 112 * 112 * 3);
     }
 
     #[test]

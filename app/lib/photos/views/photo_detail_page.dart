@@ -17,11 +17,15 @@ class PhotoDetailPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final client = ref.watch(apiClientProvider);
 
+    final colors = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: Colors.black,
+      extendBodyBehindAppBar: true,
+      backgroundColor: colors.surfaceContainerLowest,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
+        elevation: 0,
+        scrolledUnderElevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.info_outline),
@@ -37,13 +41,21 @@ class PhotoDetailPage extends ConsumerWidget {
           ),
         ],
       ),
-      body: Center(
-        child: Hero(
-          tag: 'photo_${photo.id}',
-          child: InteractiveViewer(
+      body: Hero(
+        tag: 'photo_${photo.id}',
+        child: InteractiveViewer(
+          minScale: 1.0,
+          maxScale: 5.0,
+          child: SizedBox.expand(
             child: CachedNetworkImage(
               imageUrl: client.thumbnailUrl(photo.id, size: 'lg'),
               fit: BoxFit.contain,
+              placeholder: (_, __) => const Center(
+                child: CircularProgressIndicator(),
+              ),
+              errorWidget: (_, __, ___) => const Center(
+                child: Icon(Icons.broken_image, size: 48),
+              ),
             ),
           ),
         ),
@@ -64,7 +76,10 @@ class PhotoDetailPage extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: Text(
+              'Delete',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
           ),
         ],
       ),

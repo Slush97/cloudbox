@@ -148,8 +148,9 @@ class _ClusterDetailPageState extends ConsumerState<ClusterDetailPage> {
               child: CachedNetworkImage(
                 imageUrl: client.thumbnailUrl(photo.id, size: 'md'),
                 fit: BoxFit.cover,
-                placeholder: (_, __) =>
-                    Container(color: Colors.grey.shade800),
+                placeholder: (_, __) => ColoredBox(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                ),
                 errorWidget: (_, __, ___) =>
                     const Icon(Icons.broken_image),
               ),

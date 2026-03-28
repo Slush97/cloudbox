@@ -54,14 +54,18 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (photos) {
           if (photos == null) {
-            return const Center(
+            final outlineColor = Theme.of(context).colorScheme.outline;
+            return Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.search, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text('Search your photos with natural language'),
-                  Text('Powered by CLIP embeddings', style: TextStyle(color: Colors.grey)),
+                  Icon(Icons.search, size: 64, color: outlineColor),
+                  const SizedBox(height: 16),
+                  const Text('Search your photos with natural language'),
+                  Text(
+                    'Powered by CLIP embeddings',
+                    style: TextStyle(color: outlineColor),
+                  ),
                 ],
               ),
             );
@@ -91,7 +95,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   child: CachedNetworkImage(
                     imageUrl: client.thumbnailUrl(photo.id, size: 'md'),
                     fit: BoxFit.cover,
-                    placeholder: (_, __) => Container(color: Colors.grey.shade800),
+                    placeholder: (_, __) => ColoredBox(
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    ),
                     errorWidget: (_, __, ___) => const Icon(Icons.broken_image),
                   ),
                 );

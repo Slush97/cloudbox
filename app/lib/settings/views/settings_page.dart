@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/client.dart';
 import '../../core/providers/auth_provider.dart';
+import '../../core/theme.dart';
 
 final _statsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final client = ref.watch(apiClientProvider);
@@ -16,6 +17,8 @@ class SettingsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authProvider);
     final stats = ref.watch(_statsProvider);
+    final themeMode = ref.watch(themeModeProvider);
+    final colors = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -26,6 +29,34 @@ class SettingsPage extends ConsumerWidget {
             leading: const Icon(Icons.dns_outlined),
             title: const Text('Connected to'),
             subtitle: Text(auth.serverUrl ?? 'Not connected'),
+          ),
+          const Divider(),
+          const _SectionHeader('Appearance'),
+          ListTile(
+            leading: const Icon(Icons.palette_outlined),
+            title: const Text('Theme'),
+            subtitle: Text(_themeModeLabel(themeMode)),
+            trailing: SegmentedButton<ThemeMode>(
+              segments: const [
+                ButtonSegment(
+                  value: ThemeMode.light,
+                  icon: Icon(Icons.light_mode_outlined),
+                ),
+                ButtonSegment(
+                  value: ThemeMode.system,
+                  icon: Icon(Icons.brightness_auto_outlined),
+                ),
+                ButtonSegment(
+                  value: ThemeMode.dark,
+                  icon: Icon(Icons.dark_mode_outlined),
+                ),
+              ],
+              selected: {themeMode},
+              onSelectionChanged: (selected) {
+                ref.read(themeModeProvider.notifier).set(selected.first);
+              },
+              showSelectedIcon: false,
+            ),
           ),
           const Divider(),
           const _SectionHeader('Storage'),
@@ -68,13 +99,21 @@ class SettingsPage extends ConsumerWidget {
           const Divider(),
           const _SectionHeader('Account'),
           ListTile(
-            leading: const Icon(Icons.logout),
-            title: const Text('Log out'),
+            leading: Icon(Icons.logout, color: colors.error),
+            title: Text('Log out', style: TextStyle(color: colors.error)),
             onTap: () => ref.read(authProvider.notifier).logout(),
           ),
         ],
       ),
     );
+  }
+
+  static String _themeModeLabel(ThemeMode mode) {
+    return switch (mode) {
+      ThemeMode.system => 'System',
+      ThemeMode.light => 'Light',
+      ThemeMode.dark => 'Dark',
+    };
   }
 
   static String _humanBytes(int bytes) {

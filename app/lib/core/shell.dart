@@ -2,23 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 class AppShell extends StatelessWidget {
-  const AppShell({required this.child, super.key});
+  const AppShell({required this.navigationShell, super.key});
 
-  final Widget child;
-
-  int _currentIndex(BuildContext context) {
-    final location = GoRouterState.of(context).matchedLocation;
-    if (location.startsWith('/photos')) return 0;
-    if (location.startsWith('/files')) return 1;
-    if (location.startsWith('/faces')) return 2;
-    if (location.startsWith('/search')) return 3;
-    if (location.startsWith('/settings')) return 4;
-    return 0;
-  }
+  final StatefulNavigationShell navigationShell;
 
   @override
   Widget build(BuildContext context) {
-    final index = _currentIndex(context);
     final isWide = MediaQuery.sizeOf(context).width >= 800;
 
     if (isWide) {
@@ -26,9 +15,9 @@ class AppShell extends StatelessWidget {
         body: Row(
           children: [
             NavigationRail(
-              selectedIndex: index,
+              selectedIndex: navigationShell.currentIndex,
               labelType: NavigationRailLabelType.all,
-              onDestinationSelected: (i) => _navigate(context, i),
+              onDestinationSelected: _onTap,
               destinations: _destinations
                   .map((d) => NavigationRailDestination(
                         icon: d.icon,
@@ -42,7 +31,7 @@ class AppShell extends StatelessWidget {
               child: Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 1200),
-                  child: child,
+                  child: navigationShell,
                 ),
               ),
             ),
@@ -52,18 +41,20 @@ class AppShell extends StatelessWidget {
     }
 
     return Scaffold(
-      body: child,
+      body: navigationShell,
       bottomNavigationBar: NavigationBar(
-        selectedIndex: index,
-        onDestinationSelected: (i) => _navigate(context, i),
+        selectedIndex: navigationShell.currentIndex,
+        onDestinationSelected: _onTap,
         destinations: _destinations,
       ),
     );
   }
 
-  void _navigate(BuildContext context, int index) {
-    const routes = ['/photos', '/files', '/faces', '/search', '/settings'];
-    context.go(routes[index]);
+  void _onTap(int index) {
+    navigationShell.goBranch(
+      index,
+      initialLocation: index == navigationShell.currentIndex,
+    );
   }
 }
 

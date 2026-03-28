@@ -16,6 +16,9 @@ pub enum AppError {
     #[error("bad request: {0}")]
     BadRequest(String),
 
+    #[error("too many requests")]
+    TooManyRequests,
+
     #[error(transparent)]
     Db(#[from] sqlx::Error),
 
@@ -37,12 +40,16 @@ pub enum AppError {
 
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
-        let status = match &self {
-            Self::NotFound => StatusCode::NOT_FOUND,
-            Self::Unauthorized => StatusCode::UNAUTHORIZED,
-            Self::BadRequest(_) => StatusCode::BAD_REQUEST,
-            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        let (status, message) = match &self {
+            Self::NotFound => (StatusCode::NOT_FOUND, "not found"),
+            Self::Unauthorized => (StatusCode::UNAUTHORIZED, "unauthorized"),
+            Self::BadRequest(msg) => return (StatusCode::BAD_REQUEST, msg.clone()).into_response(),
+            Self::TooManyRequests => (StatusCode::TOO_MANY_REQUESTS, "too many requests"),
+            other => {
+                tracing::error!(error = %other, "internal server error");
+                (StatusCode::INTERNAL_SERVER_ERROR, "internal server error")
+            }
         };
-        (status, self.to_string()).into_response()
+        (status, message).into_response()
     }
 }

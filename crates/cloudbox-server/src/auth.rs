@@ -1,8 +1,8 @@
 use axum::{
-    extract::{FromRequestParts, State},
+    extract::FromRequestParts,
     http::request::Parts,
 };
-use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 
 use crate::{error::AppError, state::AppState};
@@ -24,22 +24,21 @@ pub fn create_token(secret: &str, user_id: &str) -> Result<String, AppError> {
         exp,
     };
 
-    encode(&Header::default(), &claims, &EncodingKey::from_secret(secret.as_bytes()))
-        .map_err(|e| AppError::Other(e.into()))
+    encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(secret.as_bytes()),
+    )
+    .map_err(|e| AppError::Other(e.into()))
 }
 
 impl FromRequestParts<AppState> for Claims {
     type Rejection = AppError;
 
-    async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self, Self::Rejection> {
-        // When auth is disabled, return a dummy claims object.
-        if state.auth_disabled {
-            return Ok(Claims {
-                sub: "anonymous".to_string(),
-                exp: usize::MAX,
-            });
-        }
-
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &AppState,
+    ) -> Result<Self, Self::Rejection> {
         // Try Authorization header first, fall back to ?token= query param (for image URLs).
         let token = parts
             .headers
@@ -55,10 +54,11 @@ impl FromRequestParts<AppState> for Claims {
             })
             .ok_or(AppError::Unauthorized)?;
 
+        let validation = Validation::new(Algorithm::HS256);
         let token_data = decode::<Claims>(
             &token,
             &DecodingKey::from_secret(state.jwt_secret.as_bytes()),
-            &Validation::default(),
+            &validation,
         )
         .map_err(|_| AppError::Unauthorized)?;
 

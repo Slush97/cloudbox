@@ -44,16 +44,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       final client = ApiClient(baseUrl: serverUrl);
       final status = await client.authStatus();
       final needsSetup = status['needs_setup'] as bool;
-      final authDisabled = status['auth_disabled'] as bool;
-
-      if (authDisabled) {
-        // Auth is disabled — connect immediately with no credentials
-        await ref.read(authProvider.notifier).login(
-              serverUrl: serverUrl,
-              token: 'disabled',
-            );
-        return;
-      }
 
       setState(() {
         _needsSetup = needsSetup;

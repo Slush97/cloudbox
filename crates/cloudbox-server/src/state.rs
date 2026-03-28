@@ -9,7 +9,6 @@ pub struct AppState {
     pub db: PgPool,
     pub jwt_secret: String,
     pub storage_path: String,
-    pub auth_disabled: bool,
     pub face_pipeline: Option<Arc<cloudbox_vision::faces::FacePipeline>>,
     pub classifier: Option<Arc<cloudbox_vision::classify::ImageClassifier>>,
 }
@@ -26,7 +25,6 @@ impl AppState {
             db,
             jwt_secret: config.jwt_secret.clone(),
             storage_path: config.storage_path.clone(),
-            auth_disabled: config.auth_disabled,
             face_pipeline,
             classifier,
         })

@@ -1,8 +1,13 @@
 use axum::{
-    Router,
+    http::{header, HeaderValue, Method},
     routing::get,
+    Router,
 };
-use tower_http::{cors::CorsLayer, trace::TraceLayer};
+use tower_http::{
+    cors::CorsLayer,
+    limit::RequestBodyLimitLayer,
+    trace::TraceLayer,
+};
 use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 
 mod auth;
@@ -23,6 +28,8 @@ async fn main() -> anyhow::Result<()> {
     let config = config::Config::from_env()?;
     let state = state::AppState::new(&config).await?;
 
+    let cors = build_cors_layer(config.cors_origin.as_deref());
+
     let app = Router::new()
         .route("/health", get(|| async { "ok" }))
         .nest("/api/v1/auth", routes::auth::router())
@@ -30,7 +37,8 @@ async fn main() -> anyhow::Result<()> {
         .nest("/api/v1/files", routes::files::router())
         .nest("/api/v1/stats", routes::stats::router())
         .route("/s/{token}", get(routes::files::download_shared))
-        .layer(CorsLayer::permissive())
+        .layer(RequestBodyLimitLayer::new(config.max_upload_bytes))
+        .layer(cors)
         .layer(TraceLayer::new_for_http())
         .with_state(state);
 
@@ -40,4 +48,25 @@ async fn main() -> anyhow::Result<()> {
     axum::serve(listener, app).await?;
 
     Ok(())
+}
+
+fn build_cors_layer(origin: Option<&str>) -> CorsLayer {
+    let methods = [Method::GET, Method::POST, Method::PUT, Method::DELETE];
+    let headers = [header::AUTHORIZATION, header::CONTENT_TYPE];
+
+    match origin {
+        Some("*") => CorsLayer::permissive(),
+        Some(origin) => CorsLayer::new()
+            .allow_origin(
+                origin
+                    .parse::<HeaderValue>()
+                    .expect("CORS_ORIGIN must be a valid header value"),
+            )
+            .allow_methods(methods)
+            .allow_headers(headers),
+        // No CORS_ORIGIN set: same-origin only (browser default)
+        None => CorsLayer::new()
+            .allow_methods(methods)
+            .allow_headers(headers),
+    }
 }

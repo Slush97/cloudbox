@@ -47,6 +47,17 @@ pub async fn process_photo(
 
         if !faces.is_empty() {
             tracing::debug!(%photo_id, stored = faces.len(), "face embeddings stored");
+
+            // Auto-recluster so new faces appear in the UI immediately
+            match crate::faces::recluster(db).await {
+                Ok(result) => tracing::debug!(
+                    clusters = result.clusters,
+                    noise = result.noise,
+                    total = result.total_faces,
+                    "auto-recluster complete"
+                ),
+                Err(e) => tracing::warn!("auto-recluster failed: {e}"),
+            }
         }
     }
 

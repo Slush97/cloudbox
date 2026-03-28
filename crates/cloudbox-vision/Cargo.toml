@@ -13,6 +13,7 @@ ml = ["scry-learn", "scry-vision/onnx"]
 
 [dependencies]
 cloudbox-db = { path = "../cloudbox-db" }
+image.workspace = true
 scry-learn = { workspace = true, optional = true }
 scry-vision.workspace = true
 serde.workspace = true

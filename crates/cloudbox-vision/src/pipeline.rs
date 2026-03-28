@@ -27,15 +27,18 @@ pub async fn process_photo(
 
     // 2. Face detection + embedding
     if let Some(pipeline) = face_pipeline {
-        let (width, height) = match image_dimensions(&image_data) {
-            Ok(dims) => dims,
+        let rgb = match decode_to_rgb(&image_data) {
+            Ok(img) => img,
             Err(e) => {
                 tracing::warn!(%photo_id, "skipping face detection: {e}");
                 return Ok(());
             }
         };
+        let width = rgb.width();
+        let height = rgb.height();
+        let pixels = rgb.into_raw();
 
-        let faces = pipeline.detect_and_embed(&image_data, width, height, 0.5)?;
+        let faces = pipeline.detect_and_embed(&pixels, width, height, 0.5)?;
         tracing::debug!(%photo_id, face_count = faces.len(), "faces detected and embedded");
 
         for face in &faces {
@@ -68,38 +71,9 @@ async fn store_clip_embedding(
     Ok(())
 }
 
-/// Extract image dimensions from raw bytes without fully decoding.
-fn image_dimensions(data: &[u8]) -> Result<(u32, u32), VisionError> {
-    // PNG: bytes 16-23 contain width (4 bytes BE) and height (4 bytes BE)
-    if data.len() >= 24 && &data[0..8] == b"\x89PNG\r\n\x1a\n" {
-        let w = u32::from_be_bytes([data[16], data[17], data[18], data[19]]);
-        let h = u32::from_be_bytes([data[20], data[21], data[22], data[23]]);
-        return Ok((w, h));
-    }
-
-    // JPEG: scan for SOF0/SOF1/SOF2 marker
-    if data.len() >= 2 && data[0] == 0xFF && data[1] == 0xD8 {
-        let mut i = 2;
-        while i + 9 < data.len() {
-            if data[i] != 0xFF {
-                i += 1;
-                continue;
-            }
-            let marker = data[i + 1];
-            if matches!(marker, 0xC0 | 0xC1 | 0xC2) {
-                let h = u16::from_be_bytes([data[i + 5], data[i + 6]]) as u32;
-                let w = u16::from_be_bytes([data[i + 7], data[i + 8]]) as u32;
-                return Ok((w, h));
-            }
-            if i + 3 >= data.len() {
-                break;
-            }
-            let seg_len = u16::from_be_bytes([data[i + 2], data[i + 3]]) as usize;
-            i += 2 + seg_len;
-        }
-    }
-
-    Err(VisionError::Inference(
-        "could not determine image dimensions from header".into(),
-    ))
+/// Decode encoded image bytes (JPEG, PNG, etc.) into an RGB8 pixel buffer.
+fn decode_to_rgb(data: &[u8]) -> Result<image::RgbImage, VisionError> {
+    let img = image::load_from_memory(data)
+        .map_err(|e| VisionError::Inference(format!("image decode failed: {e}")))?;
+    Ok(img.into_rgb8())
 }

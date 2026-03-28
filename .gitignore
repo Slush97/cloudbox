@@ -1,4 +1,6 @@
 /target
 /data
+/models
 .env
 *.swp
+*.onnx

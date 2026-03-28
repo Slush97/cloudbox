@@ -22,3 +22,8 @@ thiserror.workspace = true
 tracing.workspace = true
 uuid.workspace = true
 tokio.workspace = true
+
+[dev-dependencies]
+image.workspace = true
+ort = "2.0.0-rc.12"
+scry-llm.workspace = true

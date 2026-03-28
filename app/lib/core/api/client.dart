@@ -32,6 +32,19 @@ class ApiClient {
   late final Dio _dio;
 
   // Auth
+  Future<Map<String, dynamic>> authStatus() async {
+    final res = await _dio.get<Map<String, dynamic>>('/auth/status');
+    return res.data!;
+  }
+
+  Future<String> register(String username, String password) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/auth/setup',
+      data: {'username': username, 'password': password},
+    );
+    return res.data!['token'] as String;
+  }
+
   Future<String> login(String username, String password) async {
     final res = await _dio.post<Map<String, dynamic>>(
       '/auth/login',

@@ -42,6 +42,13 @@ pub async fn verify(pool: &PgPool, username: &str, password: &str) -> Result<Opt
     }
 }
 
+pub async fn count(pool: &PgPool) -> Result<i64, sqlx::Error> {
+    let row: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM users")
+        .fetch_one(pool)
+        .await?;
+    Ok(row.0)
+}
+
 pub async fn create(pool: &PgPool, username: &str, password: &str) -> Result<User, Box<dyn std::error::Error>> {
     let hash = hash_password(password).map_err(|e| e.to_string())?;
     let user = sqlx::query_as::<_, User>(

@@ -18,6 +18,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   bool _loading = false;
   String? _error;
 
+  // null = unknown, true = needs first-run setup, false = normal login
+  bool? _needsSetup;
+  bool _serverChecked = false;
+
   @override
   void dispose() {
     _serverController.dispose();
@@ -26,7 +30,42 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     super.dispose();
   }
 
-  Future<void> _login() async {
+  Future<void> _checkServer() async {
+    final serverUrl = _serverController.text.trim();
+    if (serverUrl.isEmpty) return;
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final client = ApiClient(baseUrl: serverUrl);
+      final status = await client.authStatus();
+      final needsSetup = status['needs_setup'] as bool;
+      final authDisabled = status['auth_disabled'] as bool;
+
+      if (authDisabled) {
+        // Auth is disabled — connect immediately with no credentials
+        await ref.read(authProvider.notifier).login(
+              serverUrl: serverUrl,
+              token: 'disabled',
+            );
+        return;
+      }
+
+      setState(() {
+        _needsSetup = needsSetup;
+        _serverChecked = true;
+      });
+    } catch (e) {
+      setState(() => _error = 'Could not reach server: $e');
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _submit() async {
     setState(() {
       _loading = true;
       _error = null;
@@ -34,17 +73,28 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
     try {
       final client = ApiClient(baseUrl: _serverController.text.trim());
-      final token = await client.login(
-        _usernameController.text.trim(),
-        _passwordController.text,
-      );
+      final String token;
+
+      if (_needsSetup == true) {
+        token = await client.register(
+          _usernameController.text.trim(),
+          _passwordController.text,
+        );
+      } else {
+        token = await client.login(
+          _usernameController.text.trim(),
+          _passwordController.text,
+        );
+      }
 
       await ref.read(authProvider.notifier).login(
             serverUrl: _serverController.text.trim(),
             token: token,
           );
     } catch (e) {
-      setState(() => _error = 'Login failed: $e');
+      setState(() => _error = _needsSetup == true
+          ? 'Setup failed: $e'
+          : 'Login failed: $e');
     } finally {
       setState(() => _loading = false);
     }
@@ -82,38 +132,72 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     prefixIcon: Icon(Icons.dns_outlined),
                   ),
                   keyboardType: TextInputType.url,
+                  onSubmitted: (_) => _serverChecked ? _submit() : _checkServer(),
+                  enabled: !_serverChecked,
                 ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _usernameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Username',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.person_outlined),
+                if (!_serverChecked) ...[
+                  const SizedBox(height: 24),
+                  FilledButton(
+                    onPressed: _loading ? null : _checkServer,
+                    child: _loading
+                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Text('Connect'),
                   ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _passwordController,
-                  decoration: const InputDecoration(
-                    labelText: 'Password',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.lock_outlined),
+                ],
+                if (_serverChecked) ...[
+                  const SizedBox(height: 16),
+                  if (_needsSetup == true)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Text(
+                        'Welcome! Create your account to get started.',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  TextField(
+                    controller: _usernameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Username',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.person_outlined),
+                    ),
+                    autofocus: true,
                   ),
-                  obscureText: true,
-                  onSubmitted: (_) => _login(),
-                ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _passwordController,
+                    decoration: const InputDecoration(
+                      labelText: 'Password',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.lock_outlined),
+                    ),
+                    obscureText: true,
+                    onSubmitted: (_) => _submit(),
+                  ),
+                  const SizedBox(height: 24),
+                  FilledButton(
+                    onPressed: _loading ? null : _submit,
+                    child: _loading
+                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                        : Text(_needsSetup == true ? 'Create Account' : 'Sign In'),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: () => setState(() {
+                      _serverChecked = false;
+                      _needsSetup = null;
+                      _error = null;
+                    }),
+                    child: const Text('Change server'),
+                  ),
+                ],
                 if (_error != null) ...[
                   const SizedBox(height: 12),
                   Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
                 ],
-                const SizedBox(height: 24),
-                FilledButton(
-                  onPressed: _loading ? null : _login,
-                  child: _loading
-                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Text('Connect'),
-                ),
               ],
             ),
           ),

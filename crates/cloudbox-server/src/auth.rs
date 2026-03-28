@@ -32,6 +32,14 @@ impl FromRequestParts<AppState> for Claims {
     type Rejection = AppError;
 
     async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self, Self::Rejection> {
+        // When auth is disabled, return a dummy claims object.
+        if state.auth_disabled {
+            return Ok(Claims {
+                sub: "anonymous".to_string(),
+                exp: usize::MAX,
+            });
+        }
+
         // Try Authorization header first, fall back to ?token= query param (for image URLs).
         let token = parts
             .headers

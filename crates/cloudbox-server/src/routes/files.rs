@@ -4,6 +4,7 @@ use axum::{
     routing::{delete, get, post, put},
     Json, Router,
 };
+use rand::Rng;
 use serde::Deserialize;
 use uuid::Uuid;
 
@@ -24,6 +25,46 @@ pub fn router() -> Router<AppState> {
         .route("/{id}/shares", get(list_shares))
         .route("/{id}/share/{share_id}", delete(delete_share))
 }
+
+/// Sanitize a user-supplied filename: strip path components, reject traversal.
+fn sanitize_filename(raw: &str) -> Result<String, AppError> {
+    let name = std::path::Path::new(raw)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| AppError::BadRequest("invalid filename".into()))?;
+
+    if name.is_empty() || name == "." || name == ".." {
+        return Err(AppError::BadRequest("invalid filename".into()));
+    }
+
+    Ok(name.to_string())
+}
+
+/// Resolve a storage path and verify it stays within the storage root.
+fn safe_storage_path(
+    storage_root: &str,
+    relative_key: &str,
+) -> Result<std::path::PathBuf, AppError> {
+    let root = std::path::Path::new(storage_root)
+        .canonicalize()
+        .map_err(|_| AppError::BadRequest("storage path unavailable".into()))?;
+    let dest = root.join(relative_key);
+
+    // Ensure the resolved path is still under the storage root.
+    // We check the parent since the file itself may not exist yet.
+    if let Some(parent) = dest.parent() {
+        // Parent may not exist yet either, so check prefix of the joined path.
+        let normalized = root.join(relative_key);
+        if !normalized.starts_with(&root) {
+            return Err(AppError::BadRequest("invalid path".into()));
+        }
+        let _ = parent; // used for the check above
+    }
+
+    Ok(dest)
+}
+
+const MAX_QUERY_LIMIT: i64 = 500;
 
 #[derive(Deserialize)]
 struct ListParams {
@@ -68,10 +109,13 @@ async fn upload(
         return Err(AppError::BadRequest("no file".into()));
     }
 
+    let filename = sanitize_filename(&filename)?;
     let id = Uuid::now_v7();
     let storage_key = format!("files/{id}/{filename}");
-    let dest = std::path::Path::new(&state.storage_path).join(&storage_key);
-    tokio::fs::create_dir_all(dest.parent().unwrap()).await?;
+    let dest = safe_storage_path(&state.storage_path, &storage_key)?;
+    if let Some(parent) = dest.parent() {
+        tokio::fs::create_dir_all(parent).await?;
+    }
     tokio::fs::write(&dest, &data).await?;
 
     let mime_type = mime_guess::from_path(&filename)
@@ -102,9 +146,10 @@ async fn create_folder(
     State(state): State<AppState>,
     Json(req): Json<CreateFolderReq>,
 ) -> Result<Json<cloudbox_db::files::File>, AppError> {
+    let name = sanitize_filename(&req.name)?;
     let id = Uuid::now_v7();
     let folder =
-        cloudbox_db::files::create_folder(&state.db, id, &req.name, req.parent_id).await?;
+        cloudbox_db::files::create_folder(&state.db, id, &name, req.parent_id).await?;
     Ok(Json(folder))
 }
 
@@ -119,12 +164,8 @@ async fn search_files(
     State(state): State<AppState>,
     Query(params): Query<SearchParams>,
 ) -> Result<Json<Vec<cloudbox_db::files::File>>, AppError> {
-    let files = cloudbox_db::files::search_by_name(
-        &state.db,
-        &params.q,
-        params.limit.unwrap_or(50),
-    )
-    .await?;
+    let limit = params.limit.unwrap_or(50).min(MAX_QUERY_LIMIT);
+    let files = cloudbox_db::files::search_by_name(&state.db, &params.q, limit).await?;
     Ok(Json(files))
 }
 
@@ -153,7 +194,8 @@ async fn rename_file(
     Path(id): Path<Uuid>,
     Json(req): Json<RenameReq>,
 ) -> Result<Json<cloudbox_db::files::File>, AppError> {
-    let file = cloudbox_db::files::rename(&state.db, id, &req.name).await?;
+    let name = sanitize_filename(&req.name)?;
+    let file = cloudbox_db::files::rename(&state.db, id, &name).await?;
     Ok(Json(file))
 }
 
@@ -186,13 +228,9 @@ async fn delete_file(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
 ) -> Result<(), AppError> {
-    // Collect all descendant storage keys before deletion
     let keys = cloudbox_db::files::descendant_storage_keys(&state.db, id).await?;
-
-    // Delete from DB (cascades to children)
     cloudbox_db::files::delete(&state.db, id).await?;
 
-    // Clean up physical files
     for key in keys {
         let path = std::path::Path::new(&state.storage_path).join(&key);
         tokio::fs::remove_file(path).await.ok();
@@ -202,6 +240,15 @@ async fn delete_file(
 }
 
 // ---- Share links ----
+
+/// Generate a crypto-random alphanumeric share token.
+fn generate_share_token() -> String {
+    rand::thread_rng()
+        .sample_iter(&rand::distributions::Alphanumeric)
+        .take(32)
+        .map(char::from)
+        .collect()
+}
 
 #[derive(Deserialize)]
 struct CreateShareReq {
@@ -216,14 +263,13 @@ async fn create_share(
     Json(req): Json<CreateShareReq>,
 ) -> Result<Json<cloudbox_db::shares::ShareLink>, AppError> {
     let share_id = Uuid::now_v7();
-    let token = share_id.to_string().replace('-', "")[..12].to_string();
-    let expires_at = req.expires_hours.map(|h| {
-        chrono::Utc::now() + chrono::Duration::hours(h)
-    });
+    let token = generate_share_token();
+    let expires_at = req
+        .expires_hours
+        .map(|h| chrono::Utc::now() + chrono::Duration::hours(h));
 
-    let link = cloudbox_db::shares::create(
-        &state.db, share_id, id, &token, expires_at,
-    ).await?;
+    let link =
+        cloudbox_db::shares::create(&state.db, share_id, id, &token, expires_at).await?;
 
     Ok(Json(link))
 }

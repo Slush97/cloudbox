@@ -40,11 +40,11 @@ async fn list_photos(
     State(state): State<AppState>,
     Query(params): Query<ListParams>,
 ) -> Result<Json<Vec<cloudbox_db::photos::Photo>>, AppError> {
-    let photos = cloudbox_db::photos::list(&state.db, params.cursor, params.limit.unwrap_or(50)).await?;
+    let limit = params.limit.unwrap_or(50).min(500);
+    let photos = cloudbox_db::photos::list(&state.db, params.cursor, limit).await?;
     Ok(Json(photos))
 }
 
-#[axum::debug_handler]
 async fn upload(
     _claims: Claims,
     State(state): State<AppState>,
@@ -55,7 +55,12 @@ async fn upload(
         .await?
         .ok_or_else(|| AppError::BadRequest("no file".into()))?;
 
-    let filename = field.file_name().unwrap_or("upload").to_string();
+    let raw_name = field.file_name().unwrap_or("upload").to_string();
+    let filename = std::path::Path::new(&raw_name)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("upload")
+        .to_string();
     let data = field.bytes().await?;
     let file_size = data.len() as i64;
     let is_video = cloudbox_media::is_video(&filename);
@@ -68,7 +73,9 @@ async fn upload(
         .unwrap_or(if is_video { "mp4" } else { "jpg" });
     let storage_key = format!("originals/{id}.{ext}");
     let dest = std::path::Path::new(&state.storage_path).join(&storage_key);
-    tokio::fs::create_dir_all(dest.parent().unwrap()).await?;
+    if let Some(parent) = dest.parent() {
+        tokio::fs::create_dir_all(parent).await?;
+    }
     tokio::fs::write(&dest, &data).await?;
 
     if is_video {
@@ -263,7 +270,8 @@ async fn search(
 ) -> Result<Json<Vec<cloudbox_db::photos::Photo>>, AppError> {
     // Encode query text with CLIP text encoder, then cosine similarity search via pgvector
     let embedding = cloudbox_vision::clip::encode_text(&params.q)?;
-    let photos = cloudbox_db::photos::search_by_embedding(&state.db, &embedding, params.limit.unwrap_or(20)).await?;
+    let limit = params.limit.unwrap_or(20).min(500);
+    let photos = cloudbox_db::photos::search_by_embedding(&state.db, &embedding, limit).await?;
     Ok(Json(photos))
 }
 

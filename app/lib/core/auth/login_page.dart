@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../shared/widgets/error_display.dart';
 import '../api/client.dart';
 import '../providers/auth_provider.dart';
 import 'qr_scan_page.dart';
@@ -51,7 +52,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         _serverChecked = true;
       });
     } catch (e) {
-      setState(() => _error = 'Could not reach server: $e');
+      setState(() => _error = 'Could not reach server: ${friendlyError(e)}');
     } finally {
       setState(() => _loading = false);
     }
@@ -85,8 +86,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           );
     } catch (e) {
       setState(() => _error = _needsSetup == true
-          ? 'Setup failed: $e'
-          : 'Login failed: $e');
+          ? 'Setup failed: ${friendlyError(e)}'
+          : 'Login failed: ${friendlyError(e)}');
     } finally {
       setState(() => _loading = false);
     }
@@ -226,10 +227,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 400),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,

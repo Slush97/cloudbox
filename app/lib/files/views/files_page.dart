@@ -11,6 +11,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../core/api/client.dart';
 import '../../core/models/file_entry.dart';
+import '../../shared/widgets/error_display.dart';
 import '../providers/files_provider.dart';
 
 class FilesPage extends ConsumerWidget {
@@ -41,7 +42,10 @@ class FilesPage extends ConsumerWidget {
       ),
       body: files.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) => ErrorDisplay(
+          error: e,
+          onRetry: () => ref.read(filesProvider.notifier).load(),
+        ),
         data: (list) {
           if (list.isEmpty) {
             return const Center(
@@ -50,6 +54,7 @@ class FilesPage extends ConsumerWidget {
           return RefreshIndicator(
             onRefresh: () => ref.read(filesProvider.notifier).load(),
             child: ListView.builder(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               itemCount: list.length,
               itemBuilder: (context, index) =>
                   _FileTile(file: list[index]),

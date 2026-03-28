@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../albums/views/albums_page.dart';
 import '../../core/api/client.dart';
 import '../../core/models/photo.dart';
+import '../../shared/widgets/error_display.dart';
 import '../providers/photos_provider.dart';
 import '../providers/selection_provider.dart';
 import '../widgets/date_scroller.dart';
@@ -39,7 +40,10 @@ class GalleryPage extends ConsumerWidget {
         children: [
           photos.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('Error: $e')),
+            error: (e, _) => ErrorDisplay(
+              error: e,
+              onRetry: () => ref.read(photosProvider.notifier).load(),
+            ),
             data: (list) => _PhotoGrid(photos: list, client: client),
           ),
           Positioned(
@@ -143,6 +147,7 @@ class _PhotoGridState extends ConsumerState<_PhotoGrid> {
           sectionKeys: sections,
           child: CustomScrollView(
             controller: _scrollController,
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             slivers: [
               for (final (label, items) in groups) ...[
                 SliverToBoxAdapter(
@@ -166,7 +171,12 @@ class _PhotoGridState extends ConsumerState<_PhotoGrid> {
                       final selectedIds = ref.watch(selectedPhotoIdsProvider);
                       final isSelected = selectedIds.contains(photo.id);
 
-                      return GestureDetector(
+                      return Semantics(
+                        label: isSelecting
+                            ? '${photo.filename}, ${isSelected ? "selected" : "not selected"}'
+                            : photo.filename,
+                        image: !photo.isVideo,
+                        child: GestureDetector(
                         onTap: () {
                           if (isSelecting) {
                             final ids = ref.read(selectedPhotoIdsProvider.notifier);
@@ -267,6 +277,7 @@ class _PhotoGridState extends ConsumerState<_PhotoGrid> {
                               ),
                           ],
                         ),
+                      ),
                       );
                     },
                     childCount: items.length,

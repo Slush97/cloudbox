@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../core/api/client.dart';
+import '../../shared/widgets/error_display.dart';
 import '../providers/map_provider.dart';
 
 class MapPage extends ConsumerWidget {
@@ -18,7 +19,10 @@ class MapPage extends ConsumerWidget {
       appBar: AppBar(title: const Text('Map')),
       body: locations.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) => ErrorDisplay(
+          error: e,
+          onRetry: () => ref.invalidate(photoLocationsProvider),
+        ),
         data: (locs) {
           if (locs.isEmpty) {
             return Center(

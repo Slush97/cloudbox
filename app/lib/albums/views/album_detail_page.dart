@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api/client.dart';
 import '../../core/models/album.dart';
 import '../../photos/views/photo_detail_page.dart';
+import '../../shared/widgets/error_display.dart';
 import '../providers/albums_provider.dart';
 
 class AlbumDetailPage extends ConsumerWidget {
@@ -32,7 +33,10 @@ class AlbumDetailPage extends ConsumerWidget {
       ),
       body: photos.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) => ErrorDisplay(
+          error: e,
+          onRetry: () => ref.invalidate(albumPhotosFamily(album.id)),
+        ),
         data: (list) {
           if (list.isEmpty) {
             return const Center(child: Text('No photos in this album'));

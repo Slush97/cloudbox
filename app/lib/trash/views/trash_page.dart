@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/api/client.dart';
+import '../../shared/widgets/error_display.dart';
 import '../providers/trash_provider.dart';
 
 class TrashPage extends ConsumerWidget {
@@ -32,7 +33,10 @@ class TrashPage extends ConsumerWidget {
       ),
       body: trash.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) => ErrorDisplay(
+          error: e,
+          onRetry: () => ref.read(trashProvider.notifier).load(),
+        ),
         data: (data) {
           if (data.isEmpty) {
             return Center(

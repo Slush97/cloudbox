@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/client.dart';
 import '../../core/models/album.dart';
+import '../../shared/widgets/error_display.dart';
 import '../providers/albums_provider.dart';
 import 'album_detail_page.dart';
 
@@ -19,7 +20,10 @@ class AlbumsPage extends ConsumerWidget {
       appBar: AppBar(title: const Text('Albums')),
       body: albums.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) => ErrorDisplay(
+          error: e,
+          onRetry: () => ref.read(albumsProvider.notifier).load(),
+        ),
         data: (list) {
           if (list.isEmpty) {
             return Center(

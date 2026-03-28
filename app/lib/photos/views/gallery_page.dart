@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../albums/views/albums_page.dart';
@@ -41,13 +42,26 @@ class GalleryPage extends ConsumerWidget {
             error: (e, _) => Center(child: Text('Error: $e')),
             data: (list) => _PhotoGrid(photos: list, client: client),
           ),
-          if (isSelecting)
-            const Positioned(
-              bottom: 24,
-              left: 0,
-              right: 0,
-              child: Center(child: SelectionBar()),
+          Positioned(
+            bottom: 24,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                transitionBuilder: (child, animation) => SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, 1),
+                    end: Offset.zero,
+                  ).animate(animation),
+                  child: FadeTransition(opacity: animation, child: child),
+                ),
+                child: isSelecting
+                    ? const SelectionBar()
+                    : const SizedBox.shrink(),
+              ),
             ),
+          ),
         ],
       ),
       floatingActionButton: isSelecting
@@ -86,7 +100,20 @@ class _PhotoGridState extends ConsumerState<_PhotoGrid> {
   @override
   Widget build(BuildContext context) {
     if (widget.photos.isEmpty) {
-      return const Center(child: Text('No photos yet. Tap + to upload.'));
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.photo_library_outlined, size: 64,
+                color: Theme.of(context).colorScheme.onSurfaceVariant),
+            const SizedBox(height: 16),
+            const Text('No photos yet'),
+            const SizedBox(height: 8),
+            Text('Tap + to upload from your camera roll',
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          ],
+        ),
+      );
     }
 
     final groups =
@@ -164,6 +191,7 @@ class _PhotoGridState extends ConsumerState<_PhotoGrid> {
                         },
                         onLongPress: () {
                           if (!isSelecting) {
+                            HapticFeedback.mediumImpact();
                             ref.read(selectionModeProvider.notifier).state = true;
                             ref.read(selectedPhotoIdsProvider.notifier).state = {photo.id};
                           }

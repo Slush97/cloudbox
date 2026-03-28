@@ -35,16 +35,18 @@ class TrashPage extends ConsumerWidget {
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (data) {
           if (data.isEmpty) {
-            return const Center(
+            return Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.delete_outline, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text('Trash is empty'),
-                  SizedBox(height: 8),
+                  Icon(Icons.delete_outline, size: 64,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  const SizedBox(height: 16),
+                  const Text('Trash is empty'),
+                  const SizedBox(height: 8),
                   Text('Items moved to trash are permanently deleted after 30 days.',
-                      style: TextStyle(color: Colors.grey, fontSize: 12)),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant)),
                 ],
               ),
             );

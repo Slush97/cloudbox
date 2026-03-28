@@ -21,16 +21,17 @@ class MapPage extends ConsumerWidget {
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (locs) {
           if (locs.isEmpty) {
-            return const Center(
+            return Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.map_outlined, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text('No geotagged photos'),
-                  SizedBox(height: 8),
+                  Icon(Icons.map_outlined, size: 64,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  const SizedBox(height: 16),
+                  const Text('No geotagged photos'),
+                  const SizedBox(height: 8),
                   Text('Photos with GPS data will appear here',
-                      style: TextStyle(color: Colors.grey)),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
                 ],
               ),
             );

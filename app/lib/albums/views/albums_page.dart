@@ -22,15 +22,17 @@ class AlbumsPage extends ConsumerWidget {
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (list) {
           if (list.isEmpty) {
-            return const Center(
+            return Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.photo_album_outlined, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text('No albums yet'),
-                  SizedBox(height: 8),
-                  Text('Tap + to create one', style: TextStyle(color: Colors.grey)),
+                  Icon(Icons.photo_album_outlined, size: 64,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  const SizedBox(height: 16),
+                  const Text('No albums yet'),
+                  const SizedBox(height: 8),
+                  Text('Tap + to create one',
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
                 ],
               ),
             );
@@ -146,8 +148,9 @@ class _AlbumCard extends StatelessWidget {
   Widget _placeholder(BuildContext context) {
     return ColoredBox(
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      child: const Center(
-        child: Icon(Icons.photo_album_outlined, size: 48, color: Colors.grey),
+      child: Center(
+        child: Icon(Icons.photo_album_outlined, size: 48,
+            color: Theme.of(context).colorScheme.onSurfaceVariant),
       ),
     );
   }

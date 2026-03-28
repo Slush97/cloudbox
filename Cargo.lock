@@ -934,8 +934,12 @@ dependencies = [
 name = "cloudbox-vision"
 version = "0.1.0"
 dependencies = [
+ "cloudbox-db",
  "scry-learn",
  "scry-vision",
+ "serde",
+ "serde_json",
+ "sqlx",
  "thiserror",
  "tokio",
  "tracing",

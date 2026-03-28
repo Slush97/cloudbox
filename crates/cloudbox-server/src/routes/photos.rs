@@ -17,6 +17,7 @@ pub fn router() -> Router<AppState> {
         .route("/{id}", delete(delete_photo))
         .route("/search", get(search))
         .route("/faces", get(list_face_clusters))
+        .route("/faces/recluster", post(recluster_faces))
 }
 
 #[derive(Deserialize)]
@@ -162,4 +163,18 @@ async fn list_face_clusters(
 ) -> Result<Json<Vec<cloudbox_db::faces::FaceCluster>>, AppError> {
     let clusters = cloudbox_db::faces::list_clusters(&state.db).await?;
     Ok(Json(clusters))
+}
+
+async fn recluster_faces(
+    _claims: Claims,
+    State(state): State<AppState>,
+) -> Result<Json<cloudbox_vision::faces::ReclusterResult>, AppError> {
+    let result = cloudbox_vision::faces::recluster(&state.db).await?;
+    tracing::info!(
+        total = result.total_faces,
+        clusters = result.clusters,
+        noise = result.noise,
+        "face re-clustering complete"
+    );
+    Ok(Json(result))
 }

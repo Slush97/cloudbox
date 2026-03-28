@@ -217,6 +217,48 @@ pub fn cluster_faces(embeddings: &[Vec<f32>]) -> Vec<Option<i32>> {
     vec![None; embeddings.len()]
 }
 
+/// Re-cluster all face embeddings in the database.
+///
+/// Fetches every embedding, runs HDBSCAN, and updates `faces.cluster_id`.
+/// Returns the number of clusters found.
+pub async fn recluster(db: &sqlx::PgPool) -> Result<ReclusterResult, crate::VisionError> {
+    let rows = cloudbox_db::faces::fetch_all_embeddings(db).await?;
+
+    if rows.is_empty() {
+        return Ok(ReclusterResult {
+            total_faces: 0,
+            clusters: 0,
+            noise: 0,
+        });
+    }
+
+    let (face_ids, embeddings): (Vec<_>, Vec<_>) = rows.into_iter().unzip();
+    let labels = cluster_faces(&embeddings);
+
+    let assignments: Vec<_> = face_ids
+        .into_iter()
+        .zip(labels.iter().copied())
+        .collect();
+
+    cloudbox_db::faces::update_cluster_ids(db, &assignments).await?;
+
+    let clusters = labels.iter().filter_map(|l| *l).collect::<std::collections::HashSet<_>>().len();
+    let noise = labels.iter().filter(|l| l.is_none()).count();
+
+    Ok(ReclusterResult {
+        total_faces: labels.len(),
+        clusters,
+        noise,
+    })
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct ReclusterResult {
+    pub total_faces: usize,
+    pub clusters: usize,
+    pub noise: usize,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

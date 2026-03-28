@@ -12,8 +12,12 @@ default = []
 ml = ["scry-learn", "scry-vision/onnx"]
 
 [dependencies]
+cloudbox-db = { path = "../cloudbox-db" }
 scry-learn = { workspace = true, optional = true }
 scry-vision.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sqlx.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 uuid.workspace = true

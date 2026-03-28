@@ -102,6 +102,12 @@ class ApiClient {
     return res.data!.cast<Map<String, dynamic>>();
   }
 
+  // Stats
+  Future<Map<String, dynamic>> getStats() async {
+    final res = await _dio.get<Map<String, dynamic>>('/stats');
+    return res.data!;
+  }
+
   // Files
   Future<List<Map<String, dynamic>>> listFiles() async {
     final res = await _dio.get<List<dynamic>>('/files');

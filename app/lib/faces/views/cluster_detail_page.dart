@@ -140,7 +140,10 @@ class _ClusterDetailPageState extends ConsumerState<ClusterDetailPage> {
           return GestureDetector(
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
-                builder: (_) => PhotoDetailPage(photo: photo),
+                builder: (_) => PhotoDetailPage(
+                  photos: photos,
+                  initialIndex: index,
+                ),
               ),
             ),
             child: CachedNetworkImage(

@@ -8,15 +8,42 @@ import '../../core/api/client.dart';
 import '../../core/models/photo.dart';
 import '../providers/photos_provider.dart';
 
-class PhotoDetailPage extends ConsumerWidget {
-  const PhotoDetailPage({required this.photo, super.key});
+class PhotoDetailPage extends ConsumerStatefulWidget {
+  const PhotoDetailPage({
+    required this.photos,
+    required this.initialIndex,
+    super.key,
+  });
 
-  final Photo photo;
+  final List<Photo> photos;
+  final int initialIndex;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final client = ref.watch(apiClientProvider);
+  ConsumerState<PhotoDetailPage> createState() => _PhotoDetailPageState();
+}
 
+class _PhotoDetailPageState extends ConsumerState<PhotoDetailPage> {
+  late final PageController _pageController;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: _currentIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  Photo get _currentPhoto => widget.photos[_currentIndex];
+
+  @override
+  Widget build(BuildContext context) {
+    final client = ref.watch(apiClientProvider);
     final colors = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -32,39 +59,50 @@ class PhotoDetailPage extends ConsumerWidget {
           ),
           IconButton(
             icon: const Icon(Icons.share),
-            onPressed: () => Share.share(client.originalUrl(photo.id)),
+            onPressed: () =>
+                Share.share(client.originalUrl(_currentPhoto.id)),
           ),
           IconButton(
             icon: const Icon(Icons.delete_outline),
-            onPressed: () => _confirmDelete(context, ref),
+            onPressed: () => _confirmDelete(context),
           ),
         ],
       ),
-      body: InteractiveViewer(
-        minScale: 1.0,
-        maxScale: 5.0,
-        child: SizedBox.expand(
-          child: CachedNetworkImage(
-            imageUrl: client.thumbnailUrl(photo.id, size: 'lg'),
-            fit: BoxFit.contain,
-            placeholder: (_, __) => const Center(
-              child: CircularProgressIndicator(),
+      body: PageView.builder(
+        controller: _pageController,
+        itemCount: widget.photos.length,
+        onPageChanged: (index) => setState(() => _currentIndex = index),
+        itemBuilder: (context, index) {
+          final photo = widget.photos[index];
+          return InteractiveViewer(
+            minScale: 1.0,
+            maxScale: 5.0,
+            child: SizedBox.expand(
+              child: CachedNetworkImage(
+                imageUrl: client.thumbnailUrl(photo.id, size: 'lg'),
+                fit: BoxFit.contain,
+                alignment: Alignment.center,
+                placeholder: (_, __) => const Center(
+                  child: CircularProgressIndicator(),
+                ),
+                errorWidget: (_, __, ___) => const Center(
+                  child: Icon(Icons.broken_image, size: 48),
+                ),
+              ),
             ),
-            errorWidget: (_, __, ___) => const Center(
-              child: Icon(Icons.broken_image, size: 48),
-            ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
 
-  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+  Future<void> _confirmDelete(BuildContext context) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete photo?'),
-        content: const Text('This will permanently delete this photo and all associated data.'),
+        content: const Text(
+            'This will permanently delete this photo and all associated data.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -74,19 +112,21 @@ class PhotoDetailPage extends ConsumerWidget {
             onPressed: () => Navigator.of(context).pop(true),
             child: Text(
               'Delete',
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
+              style:
+                  TextStyle(color: Theme.of(context).colorScheme.error),
             ),
           ),
         ],
       ),
     );
     if (confirmed == true && context.mounted) {
-      await ref.read(photosProvider.notifier).delete(photo.id);
+      await ref.read(photosProvider.notifier).delete(_currentPhoto.id);
       if (context.mounted) Navigator.of(context).pop();
     }
   }
 
   void _showInfo(BuildContext context) {
+    final photo = _currentPhoto;
     final dateFormat = DateFormat.yMMMMd().add_jm();
 
     showModalBottomSheet<void>(
@@ -97,15 +137,24 @@ class PhotoDetailPage extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(photo.filename, style: Theme.of(context).textTheme.titleMedium),
+            Text(photo.filename,
+                style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 12),
             _InfoRow('Date', dateFormat.format(photo.displayDate)),
             if (photo.cameraMake != null || photo.cameraModel != null)
-              _InfoRow('Camera', [photo.cameraMake, photo.cameraModel].whereType<String>().join(' ')),
+              _InfoRow(
+                  'Camera',
+                  [photo.cameraMake, photo.cameraModel]
+                      .whereType<String>()
+                      .join(' ')),
             if (photo.width != null && photo.height != null)
-              _InfoRow('Resolution', '${photo.width} x ${photo.height}'),
+              _InfoRow(
+                  'Resolution', '${photo.width} x ${photo.height}'),
             if (photo.latitude != null && photo.longitude != null)
-              _InfoRow('Location', '${photo.latitude!.toStringAsFixed(4)}, ${photo.longitude!.toStringAsFixed(4)}'),
+              _InfoRow(
+                  'Location',
+                  '${photo.latitude!.toStringAsFixed(4)}, '
+                  '${photo.longitude!.toStringAsFixed(4)}'),
             const SizedBox(height: 16),
           ],
         ),

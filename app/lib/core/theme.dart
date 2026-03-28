@@ -54,7 +54,7 @@ class CloudboxTheme {
       scrolledUnderElevation: 1,
     ),
     navigationBarTheme: const NavigationBarThemeData(
-      labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
+      labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
       height: 72,
     ),
     navigationRailTheme: const NavigationRailThemeData(
@@ -84,7 +84,7 @@ class CloudboxTheme {
       scrolledUnderElevation: 1,
     ),
     navigationBarTheme: const NavigationBarThemeData(
-      labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
+      labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
       height: 72,
     ),
     navigationRailTheme: const NavigationRailThemeData(

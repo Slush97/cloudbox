@@ -151,16 +151,35 @@ class FilesPage extends ConsumerWidget {
 
 // ---- Breadcrumb bar ----
 
-class _BreadcrumbBar extends ConsumerWidget {
+class _BreadcrumbBar extends ConsumerStatefulWidget {
   const _BreadcrumbBar({required this.folderId});
   final String folderId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final client = ref.watch(apiClientProvider);
+  ConsumerState<_BreadcrumbBar> createState() => _BreadcrumbBarState();
+}
 
+class _BreadcrumbBarState extends ConsumerState<_BreadcrumbBar> {
+  late Future<List<Map<String, dynamic>>> _ancestorsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _ancestorsFuture = ref.read(apiClientProvider).getAncestors(widget.folderId);
+  }
+
+  @override
+  void didUpdateWidget(_BreadcrumbBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.folderId != widget.folderId) {
+      _ancestorsFuture = ref.read(apiClientProvider).getAncestors(widget.folderId);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return FutureBuilder<List<Map<String, dynamic>>>(
-      future: client.getAncestors(folderId),
+      future: _ancestorsFuture,
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const Text('Files');
         final ancestors =
@@ -185,7 +204,7 @@ class _BreadcrumbBar extends ConsumerWidget {
                       .state = entry.id,
                   child: Text(
                     entry.filename,
-                    style: entry.id == folderId
+                    style: entry.id == widget.folderId
                         ? null
                         : TextStyle(
                             color: Theme.of(context).colorScheme.primary),

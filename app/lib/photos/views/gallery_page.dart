@@ -97,6 +97,9 @@ class _PhotoGridState extends ConsumerState<_PhotoGrid> {
 
     // Build a flat index for photo detail navigation
     final allPhotos = widget.photos;
+    final photoIndex = {
+      for (var i = 0; i < allPhotos.length; i++) allPhotos[i].id: i,
+    };
 
     return RefreshIndicator(
       onRefresh: () => ref.read(photosProvider.notifier).load(),
@@ -131,7 +134,7 @@ class _PhotoGridState extends ConsumerState<_PhotoGrid> {
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
                       final photo = items[index];
-                      final globalIndex = allPhotos.indexOf(photo);
+                      final globalIndex = photoIndex[photo.id] ?? 0;
                       final isSelecting = ref.watch(selectionModeProvider);
                       final selectedIds = ref.watch(selectedPhotoIdsProvider);
                       final isSelected = selectedIds.contains(photo.id);

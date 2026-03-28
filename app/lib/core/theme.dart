@@ -44,63 +44,40 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
 class CloudboxTheme {
   static const _seed = Color(0xFF2D5F8A);
 
-  static final light = ThemeData(
-    useMaterial3: true,
-    brightness: Brightness.light,
-    colorSchemeSeed: _seed,
-    textTheme: GoogleFonts.interTextTheme(),
-    appBarTheme: const AppBarTheme(
-      centerTitle: false,
-      scrolledUnderElevation: 1,
-    ),
-    navigationBarTheme: const NavigationBarThemeData(
-      labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-      height: 72,
-    ),
-    navigationRailTheme: const NavigationRailThemeData(
-      labelType: NavigationRailLabelType.all,
-    ),
-    dividerTheme: const DividerThemeData(space: 1),
-    cardTheme: const CardThemeData(
-      clipBehavior: Clip.antiAlias,
-      elevation: 0,
-    ),
-    inputDecorationTheme: const InputDecorationTheme(
-      filled: true,
-      border: OutlineInputBorder(),
-    ),
-    snackBarTheme: const SnackBarThemeData(
-      behavior: SnackBarBehavior.floating,
-    ),
-  );
+  static ThemeData _build(Brightness brightness) {
+    final isDark = brightness == Brightness.dark;
+    final base = isDark ? ThemeData.dark() : ThemeData.light();
+    return ThemeData(
+      useMaterial3: true,
+      brightness: brightness,
+      colorSchemeSeed: _seed,
+      textTheme: GoogleFonts.interTextTheme(base.textTheme),
+      appBarTheme: const AppBarTheme(
+        centerTitle: false,
+        scrolledUnderElevation: 1,
+      ),
+      navigationBarTheme: const NavigationBarThemeData(
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        height: 72,
+      ),
+      navigationRailTheme: const NavigationRailThemeData(
+        labelType: NavigationRailLabelType.all,
+      ),
+      dividerTheme: const DividerThemeData(space: 1),
+      cardTheme: const CardThemeData(
+        clipBehavior: Clip.antiAlias,
+        elevation: 0,
+      ),
+      inputDecorationTheme: const InputDecorationTheme(
+        filled: true,
+        border: OutlineInputBorder(),
+      ),
+      snackBarTheme: const SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
 
-  static final dark = ThemeData(
-    useMaterial3: true,
-    brightness: Brightness.dark,
-    colorSchemeSeed: _seed,
-    textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
-    appBarTheme: const AppBarTheme(
-      centerTitle: false,
-      scrolledUnderElevation: 1,
-    ),
-    navigationBarTheme: const NavigationBarThemeData(
-      labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-      height: 72,
-    ),
-    navigationRailTheme: const NavigationRailThemeData(
-      labelType: NavigationRailLabelType.all,
-    ),
-    dividerTheme: const DividerThemeData(space: 1),
-    cardTheme: const CardThemeData(
-      clipBehavior: Clip.antiAlias,
-      elevation: 0,
-    ),
-    inputDecorationTheme: const InputDecorationTheme(
-      filled: true,
-      border: OutlineInputBorder(),
-    ),
-    snackBarTheme: const SnackBarThemeData(
-      behavior: SnackBarBehavior.floating,
-    ),
-  );
+  static final light = _build(Brightness.light);
+  static final dark = _build(Brightness.dark);
 }

@@ -86,7 +86,7 @@ async fn upload(
     let photo = cloudbox_db::photos::insert(&state.db, id, &filename, &storage_key, phash, meta).await?;
 
     // 6. Queue vision processing (CLIP embedding, face detection) — async background
-    cloudbox_vision::queue_photo(id, dest);
+    cloudbox_vision::queue_photo(id, dest, None);
 
     Ok(Json(photo))
 }

@@ -9,11 +9,11 @@ description = "ML vision pipeline — CLIP embeddings, face detection/clustering
 
 [features]
 default = []
-ml = ["scry-learn", "scry-llm"]
+ml = ["scry-learn", "scry-vision/onnx"]
 
 [dependencies]
 scry-learn = { workspace = true, optional = true }
-scry-llm = { workspace = true, optional = true }
+scry-vision.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 uuid.workspace = true

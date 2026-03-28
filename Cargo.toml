@@ -54,4 +54,5 @@ dotenvy = "0.15"
 # Your crates — vision/ML pipeline
 scry-learn = { path = "../esolearn/crates/scry-learn" }
 scry-llm = { path = "../esolearn/crates/scry-llm" }
+scry-vision = { path = "../esolearn/crates/scry-vision", default-features = false }
 scry-gpu = { path = "../esolearn/crates/scry-gpu" }

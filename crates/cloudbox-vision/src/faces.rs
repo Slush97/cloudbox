@@ -196,7 +196,7 @@ pub fn cluster_faces(embeddings: &[Vec<f32>]) -> Vec<Option<i32>> {
     let target = vec![0.0f64; n];
     let data = Dataset::new(features, target, names, "cluster");
 
-    let mut hdb = Hdbscan::new().min_cluster_size(3).min_samples(5);
+    let mut hdb = Hdbscan::new().min_cluster_size(2).min_samples(2);
 
     match hdb.fit(&data) {
         Ok(()) => hdb

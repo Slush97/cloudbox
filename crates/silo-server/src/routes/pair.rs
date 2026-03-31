@@ -37,7 +37,7 @@ pub async fn pair_page(
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cloudbox — Connect Device</title>
+<title>Silo — Connect Device</title>
 <style>
   * {{ margin: 0; padding: 0; box-sizing: border-box; }}
   body {{
@@ -85,12 +85,12 @@ pub async fn pair_page(
 <body>
 <div class="card">
   <h1>Connect Device</h1>
-  <p class="subtitle">Scan this QR code with the Cloudbox app</p>
+  <p class="subtitle">Scan this QR code with the Silo app</p>
   <div class="qr-container">{svg}</div>
   <div class="url">{origin}</div>
   <div class="steps">
     <strong>How to connect:</strong><br>
-    1. Open Cloudbox on your phone<br>
+    1. Open Silo on your phone<br>
     2. Tap "Scan QR Code" on the login screen<br>
     3. Point your camera at this code<br>
     4. Log in or create your account

@@ -8,4 +8,4 @@ pub mod stats;
 pub mod tags;
 pub mod users;
 
-pub use cloudbox_media::PhotoMeta;
+pub use silo_media::PhotoMeta;

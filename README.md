@@ -1,65 +1,65 @@
-# Cloudbox
+# Silo
 
-Self-hosted cloud platform — photo management, file storage, and semantic search, built from scratch.
+Self-hosted personal cloud — photo management, file storage, and notes.
 
 ## Stack
 
 - **Backend:** Rust (Axum, sqlx, tokio)
-- **Frontend:** Flutter (mobile, web, desktop)
-- **Database:** PostgreSQL + pgvector
-- **ML Pipeline:** [scry-learn](https://github.com/Slush97/esolearn) (HDBSCAN face clustering) + scry-llm (CLIP/ArcFace inference)
-- **Storage:** Local filesystem, optional S3/MinIO
+- **Database:** PostgreSQL
+- **Reverse Proxy:** Caddy (auto-TLS)
+- **Storage:** Local filesystem, optional S3
 
 ## Features
 
 - **Photo management** — upload, EXIF extraction, thumbnail generation (sm/md/lg WebP)
-- **Semantic search** — CLIP embeddings + pgvector cosine similarity ("find photos of dogs at the beach")
-- **Face detection & clustering** — SCRFD detection, ArcFace embeddings, HDBSCAN grouping via scry-learn
 - **Perceptual dedup** — dHash-based duplicate detection on upload
-- **File storage** — generic file upload/download/browse
-- **Auth** — Argon2id password hashing, JWT tokens
-- **Adaptive UI** — bottom nav on mobile, navigation rail on desktop
+- **Video support** — metadata extraction, frame thumbnails, HTTP range streaming
+- **File storage** — upload/download/browse with folder hierarchy and share links
+- **Albums** — organize photos, cover photos, batch operations
+- **Notes** — full-text search, pinning, tagging
+- **Trash** — soft delete with auto-cleanup after 30 days
+- **Auth** — Argon2id password hashing, JWT tokens, QR device pairing
 
 ## Project Structure
 
 ```
-cloudbox/
+silo/
 ├── crates/
-│   ├── cloudbox-server/    # Axum API + auth + routes
-│   ├── cloudbox-db/        # sqlx queries + migrations
-│   ├── cloudbox-media/     # EXIF, thumbnails, perceptual hashing
-│   ├── cloudbox-vision/    # CLIP, face detection, clustering pipeline
-│   └── cloudbox-sync/      # Storage abstraction (local + S3)
-├── app/                    # Flutter client
-├── migrations/             # PostgreSQL schema
-├── docker-compose.yml      # Postgres (pgvector), MinIO, Redis
-└── setup.sh                # One-command bootstrap for Arch Linux
+│   ├── silo-server/     # Axum API + auth + routes
+│   ├── silo-db/         # sqlx queries + migrations
+│   ├── silo-media/      # EXIF, thumbnails, perceptual hashing
+│   └── silo-sync/       # Storage abstraction (local + S3)
+├── migrations/          # PostgreSQL schema
+├── Dockerfile           # Multi-stage build
+├── docker-compose.yml   # Dev: Postgres
+├── docker-compose.prod.yml  # Prod: Postgres + Silo + Caddy
+├── Caddyfile            # Reverse proxy config
+└── setup.sh             # One-command bootstrap for Arch Linux
 ```
 
 ## Quick Start
 
+### Docker (recommended)
+
 ```bash
-# Clone
-git clone https://github.com/Slush97/cloudbox.git
-cd cloudbox
-
-# Setup (Arch Linux — installs Postgres, pgvector, seeds admin user)
-./setup.sh
-
-# Run
-cargo run --release --bin cloudbox
+./docker-setup.sh
 ```
 
-## Status
+### Bare metal (Arch Linux)
 
-Early development. The server compiles and the API surface is defined. Currently working through:
+```bash
+./setup.sh
+cargo run --release --bin silo
+```
 
-- [ ] End-to-end photo upload → gallery display
-- [ ] CLIP ViT integration via scry-llm
-- [ ] Face pipeline (detection → embedding → clustering)
-- [ ] Flutter app connected to live server
-- [ ] Auto-upload from phone camera roll
-- [ ] Tailscale networking for remote access
+### Manual
+
+```bash
+cp .env.example .env
+# Edit .env — set JWT_SECRET (openssl rand -hex 32)
+docker compose up -d   # start postgres
+cargo run --release --bin silo
+```
 
 ## License
 

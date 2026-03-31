@@ -2,7 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-echo "=== Cloudbox Docker Setup ==="
+echo "=== Silo Docker Setup ==="
 
 # Generate .env.prod if it doesn't exist
 if [ ! -f .env.prod ]; then
@@ -12,7 +12,6 @@ if [ ! -f .env.prod ]; then
     cat > .env.prod <<EOF
 JWT_SECRET=$JWT_SECRET
 DB_PASSWORD=$DB_PASSWORD
-CLOUDBOX_PORT=3000
 EOF
     chmod 600 .env.prod
     echo "Generated .env.prod with random secrets"
@@ -21,15 +20,15 @@ else
 fi
 
 # Build and start
-echo "Building and starting Cloudbox (this may take a few minutes on first run)..."
+echo "Building and starting Silo (this may take a few minutes on first run)..."
 docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
 
 echo ""
-echo "=== Cloudbox is running ==="
-echo "Open http://localhost:3000 in your browser"
+echo "=== Silo is running ==="
+echo "Open https://your-domain or http://localhost (via Caddy)"
 echo "Create your account on first visit"
 echo ""
 echo "Commands:"
 echo "  Stop:    docker compose -f docker-compose.prod.yml down"
-echo "  Logs:    docker compose -f docker-compose.prod.yml logs -f cloudbox"
+echo "  Logs:    docker compose -f docker-compose.prod.yml logs -f silo"
 echo "  Update:  git pull && ./docker-setup.sh"

@@ -44,9 +44,9 @@ async fn list_photos(
     _claims: Claims,
     State(state): State<AppState>,
     Query(params): Query<ListParams>,
-) -> Result<Json<Vec<cloudbox_db::photos::Photo>>, AppError> {
+) -> Result<Json<Vec<silo_db::photos::Photo>>, AppError> {
     let limit = params.limit.unwrap_or(50).min(500);
-    let filter = cloudbox_db::photos::PhotoFilter {
+    let filter = silo_db::photos::PhotoFilter {
         cursor: params.cursor,
         limit,
         favorites_only: params.favorites.unwrap_or(false),
@@ -55,7 +55,7 @@ async fn list_photos(
         date_to: params.date_to.and_then(|s| s.parse().ok()),
         has_location: params.has_location.unwrap_or(false),
     };
-    let photos = cloudbox_db::photos::list(&state.db, &filter).await?;
+    let photos = silo_db::photos::list(&state.db, &filter).await?;
     Ok(Json(photos))
 }
 
@@ -63,7 +63,7 @@ async fn upload(
     _claims: Claims,
     State(state): State<AppState>,
     mut multipart: Multipart,
-) -> Result<Json<cloudbox_db::photos::Photo>, AppError> {
+) -> Result<Json<silo_db::photos::Photo>, AppError> {
     let field = multipart
         .next_field()
         .await?
@@ -77,7 +77,7 @@ async fn upload(
         .to_string();
     let data = field.bytes().await?;
     let file_size = data.len() as i64;
-    let is_video = cloudbox_media::is_video(&filename);
+    let is_video = silo_media::is_video(&filename);
 
     // 1. Write original to storage
     let id = Uuid::now_v7();
@@ -96,14 +96,14 @@ async fn upload(
         // ---- Video upload flow ----
 
         // 2v. Extract video metadata via ffprobe
-        let video_meta = cloudbox_media::video::extract_metadata(&dest).await?;
+        let video_meta = silo_media::video::extract_metadata(&dest).await?;
 
         // 3v. Generate thumbnails from extracted frame
         let duration = video_meta.duration_secs.unwrap_or(1.0);
-        cloudbox_media::video::generate_thumbs(&dest, &state.storage_path, &id, duration).await?;
+        silo_media::video::generate_thumbs(&dest, &state.storage_path, &id, duration).await?;
 
         // 4v. Build PhotoMeta from video metadata
-        let meta = cloudbox_media::PhotoMeta {
+        let meta = silo_media::PhotoMeta {
             taken_at: video_meta.taken_at,
             width: video_meta.width,
             height: video_meta.height,
@@ -111,7 +111,7 @@ async fn upload(
         };
 
         // 5v. Insert as video
-        let photo = cloudbox_db::photos::insert(
+        let photo = silo_db::photos::insert(
             &state.db, id, &filename, &storage_key, None, Some(meta), file_size,
             "video", video_meta.duration_secs, video_meta.codec.as_deref(),
         ).await?;
@@ -121,10 +121,10 @@ async fn upload(
         // ---- Photo upload flow ----
 
         // 2p. Compute perceptual hash and check for duplicates
-        let phash = cloudbox_media::phash::dhash(&data).ok();
+        let phash = silo_media::phash::dhash(&data).ok();
         if let Some(hash) = phash {
-            if let Some(existing) = cloudbox_db::photos::find_duplicate(
-                &state.db, hash, cloudbox_media::phash::DUPLICATE_THRESHOLD,
+            if let Some(existing) = silo_db::photos::find_duplicate(
+                &state.db, hash, silo_media::phash::DUPLICATE_THRESHOLD,
             ).await? {
                 // Clean up the file we just wrote
                 tokio::fs::remove_file(&dest).await.ok();
@@ -136,13 +136,13 @@ async fn upload(
         }
 
         // 3p. Extract EXIF metadata
-        let meta = cloudbox_media::exif::extract(&data);
+        let meta = silo_media::exif::extract(&data);
 
         // 4p. Generate thumbnails
-        cloudbox_media::thumbs::generate(&data, &state.storage_path, &id).await?;
+        silo_media::thumbs::generate(&data, &state.storage_path, &id).await?;
 
         // 5p. Insert as photo
-        let photo = cloudbox_db::photos::insert(
+        let photo = silo_db::photos::insert(
             &state.db, id, &filename, &storage_key, phash, meta, file_size,
             "photo", None, None,
         ).await?;
@@ -155,8 +155,8 @@ async fn get_photo(
     _claims: Claims,
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
-) -> Result<Json<cloudbox_db::photos::Photo>, AppError> {
-    cloudbox_db::photos::get(&state.db, id)
+) -> Result<Json<silo_db::photos::Photo>, AppError> {
+    silo_db::photos::get(&state.db, id)
         .await?
         .ok_or(AppError::NotFound)
         .map(Json)
@@ -181,7 +181,7 @@ async fn stream_video(
     Path(id): Path<Uuid>,
     headers: HeaderMap,
 ) -> Result<Response, AppError> {
-    let photo = cloudbox_db::photos::get(&state.db, id)
+    let photo = silo_db::photos::get(&state.db, id)
         .await?
         .ok_or(AppError::NotFound)?;
 
@@ -259,12 +259,12 @@ async fn delete_photo(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
 ) -> Result<(), AppError> {
-    cloudbox_db::photos::get(&state.db, id)
+    silo_db::photos::get(&state.db, id)
         .await?
         .ok_or(AppError::NotFound)?;
 
     // Soft delete — files are cleaned up when trash expires
-    cloudbox_db::photos::soft_delete(&state.db, id).await?;
+    silo_db::photos::soft_delete(&state.db, id).await?;
     Ok(())
 }
 
@@ -272,16 +272,16 @@ async fn toggle_favorite(
     _claims: Claims,
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
-) -> Result<Json<cloudbox_db::photos::Photo>, AppError> {
-    let photo = cloudbox_db::photos::toggle_favorite(&state.db, id).await?;
+) -> Result<Json<silo_db::photos::Photo>, AppError> {
+    let photo = silo_db::photos::toggle_favorite(&state.db, id).await?;
     Ok(Json(photo))
 }
 
 async fn list_locations(
     _claims: Claims,
     State(state): State<AppState>,
-) -> Result<Json<Vec<cloudbox_db::photos::PhotoLocation>>, AppError> {
-    let locations = cloudbox_db::photos::list_locations(&state.db).await?;
+) -> Result<Json<Vec<silo_db::photos::PhotoLocation>>, AppError> {
+    let locations = silo_db::photos::list_locations(&state.db).await?;
     Ok(Json(locations))
 }
 
@@ -310,7 +310,7 @@ async fn batch_favorite(
     if req.ids.len() > 500 {
         return Err(AppError::BadRequest("max 500 items per batch".into()));
     }
-    let affected = cloudbox_db::photos::batch_set_favorite(&state.db, &req.ids, req.value).await?;
+    let affected = silo_db::photos::batch_set_favorite(&state.db, &req.ids, req.value).await?;
     Ok(Json(affected))
 }
 
@@ -322,7 +322,7 @@ async fn batch_delete(
     if req.ids.len() > 500 {
         return Err(AppError::BadRequest("max 500 items per batch".into()));
     }
-    let affected = cloudbox_db::photos::batch_soft_delete(&state.db, &req.ids).await?;
+    let affected = silo_db::photos::batch_soft_delete(&state.db, &req.ids).await?;
     Ok(Json(affected))
 }
 
@@ -334,7 +334,7 @@ async fn batch_add_to_album(
     if req.ids.len() > 500 {
         return Err(AppError::BadRequest("max 500 items per batch".into()));
     }
-    let added = cloudbox_db::albums::add_photos(&state.db, req.album_id, &req.ids).await?;
+    let added = silo_db::albums::add_photos(&state.db, req.album_id, &req.ids).await?;
     Ok(Json(added))
 }
 
@@ -344,8 +344,8 @@ async fn list_tags(
     _claims: Claims,
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
-) -> Result<Json<Vec<cloudbox_db::tags::PhotoTag>>, AppError> {
-    let tags = cloudbox_db::tags::get_tags_for_photo(&state.db, id).await?;
+) -> Result<Json<Vec<silo_db::tags::PhotoTag>>, AppError> {
+    let tags = silo_db::tags::get_tags_for_photo(&state.db, id).await?;
     Ok(Json(tags))
 }
 
@@ -360,7 +360,7 @@ async fn add_tag(
     Path(id): Path<Uuid>,
     Json(req): Json<AddTagRequest>,
 ) -> Result<(), AppError> {
-    cloudbox_db::tags::add_tag(&state.db, id, &req.name, 1.0, "manual").await?;
+    silo_db::tags::add_tag(&state.db, id, &req.name, 1.0, "manual").await?;
     Ok(())
 }
 
@@ -369,6 +369,6 @@ async fn remove_tag(
     State(state): State<AppState>,
     Path((id, tag_id)): Path<(Uuid, i32)>,
 ) -> Result<(), AppError> {
-    cloudbox_db::tags::remove_tag(&state.db, id, tag_id).await?;
+    silo_db::tags::remove_tag(&state.db, id, tag_id).await?;
     Ok(())
 }

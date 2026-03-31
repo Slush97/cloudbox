@@ -29,8 +29,8 @@ impl Config {
             .unwrap_or(10 * 1024 * 1024 * 1024); // 10 GB
 
         Ok(Self {
-            host: env::var("CLOUDBOX_HOST").unwrap_or_else(|_| "0.0.0.0".into()),
-            port: env::var("CLOUDBOX_PORT")
+            host: env::var("SILO_HOST").unwrap_or_else(|_| "0.0.0.0".into()),
+            port: env::var("SILO_PORT")
                 .unwrap_or_else(|_| "3000".into())
                 .parse()
                 .unwrap_or(3000),

@@ -1,6 +1,6 @@
 # Super-App Evolution Plan
 
-> Evolving cloudbox from a Google Photos + Drive replacement into an open-source, self-hosted super-app — one app, one account, everything integrated.
+> Evolving silo from a Google Photos + Drive replacement into an open-source, self-hosted super-app — one app, one account, everything integrated.
 
 ## Vision
 
@@ -10,13 +10,13 @@ Google's moat isn't individual apps — it's the integration between them. No op
 
 ---
 
-## What Exists Today (cloudbox)
+## What Exists Today (silo)
 
 ### Backend (Rust)
-- **cloudbox-server** — Axum 0.8 HTTP API, JWT auth (Argon2), rate limiting, CORS, QR device pairing
-- **cloudbox-db** — PostgreSQL 17 + pgvector, sqlx compile-time checked queries, 10 migrations
-- **cloudbox-media** — EXIF extraction, WebP thumbnail generation (3 sizes), perceptual hashing (dHash), video metadata via FFmpeg
-- **cloudbox-sync** — Storage trait abstraction (local filesystem + S3/MinIO backends)
+- **silo-server** — Axum 0.8 HTTP API, JWT auth (Argon2), rate limiting, CORS, QR device pairing
+- **silo-db** — PostgreSQL 17 + pgvector, sqlx compile-time checked queries, 10 migrations
+- **silo-media** — EXIF extraction, WebP thumbnail generation (3 sizes), perceptual hashing (dHash), video metadata via FFmpeg
+- **silo-sync** — Storage trait abstraction (local filesystem + S3/MinIO backends)
 
 ### Frontend (Flutter)
 - **Photos** — Gallery grid, full-screen viewer, EXIF detail, device camera roll upload, favorites, semantic search (CLIP)
@@ -103,16 +103,16 @@ Auth/Settings           Contacts (unified)
 
 ```
 crates/
-├── cloudbox-server/        ✅  HTTP API, routing, middleware, auth
-├── cloudbox-db/            ✅  Database layer, models, queries
-├── cloudbox-media/         ✅  Image/video processing, EXIF, thumbnails
-├── cloudbox-sync/          ✅  Storage abstraction (local + S3)
-├── cloudbox-graph/         🆕  Knowledge graph engine, entity extraction, MCP server
-├── cloudbox-notes/         🆕  Note storage, markdown processing, full-text search
-├── cloudbox-calendar/      🆕  CalDAV server/client, event management, recurrence
-├── cloudbox-contacts/      🆕  CardDAV, contact resolution, deduplication
-├── cloudbox-mail/          🆕  IMAP/JMAP client, email parsing, SMTP sending
-└── cloudbox-messaging/     🆕  Matrix SDK wrapper, SMS bridge adapter
+├── silo-server/        ✅  HTTP API, routing, middleware, auth
+├── silo-db/            ✅  Database layer, models, queries
+├── silo-media/         ✅  Image/video processing, EXIF, thumbnails
+├── silo-sync/          ✅  Storage abstraction (local + S3)
+├── silo-graph/         🆕  Knowledge graph engine, entity extraction, MCP server
+├── silo-notes/         🆕  Note storage, markdown processing, full-text search
+├── silo-calendar/      🆕  CalDAV server/client, event management, recurrence
+├── silo-contacts/      🆕  CardDAV, contact resolution, deduplication
+├── silo-mail/          🆕  IMAP/JMAP client, email parsing, SMTP sending
+└── silo-messaging/     🆕  Matrix SDK wrapper, SMS bridge adapter
 ```
 
 ### Flutter Module Structure
@@ -578,7 +578,7 @@ CREATE INDEX idx_mail_messages_fts ON mail_messages
 
 ## Rust Dependencies — New Crates
 
-### cloudbox-graph
+### silo-graph
 ```toml
 [dependencies]
 sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "uuid", "json"] }
@@ -589,7 +589,7 @@ uuid = { version = "1", features = ["v4"] }
 tokio = { version = "1", features = ["full"] }
 ```
 
-### cloudbox-notes
+### silo-notes
 ```toml
 [dependencies]
 sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "uuid"] }
@@ -598,7 +598,7 @@ uuid = { version = "1", features = ["v4"] }
 pulldown-cmark = "0.12"
 ```
 
-### cloudbox-calendar
+### silo-calendar
 ```toml
 [dependencies]
 sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "uuid"] }
@@ -609,7 +609,7 @@ chrono = "0.4"
 reqwest = { version = "0.12", features = ["rustls-tls"] }
 ```
 
-### cloudbox-contacts
+### silo-contacts
 ```toml
 [dependencies]
 sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "uuid"] }
@@ -618,7 +618,7 @@ uuid = { version = "1", features = ["v4"] }
 vcard_parser = "0.2"
 ```
 
-### cloudbox-mail
+### silo-mail
 ```toml
 [dependencies]
 async-imap = "0.10"
@@ -630,7 +630,7 @@ serde = { version = "1", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
 ```
 
-### cloudbox-messaging
+### silo-messaging
 ```toml
 [dependencies]
 matrix-sdk = { version = "0.9", features = ["e2e-encryption", "sqlite"] }
@@ -663,8 +663,8 @@ dependencies:
 **Goal:** Restructure app navigation to super-app layout. Add first two new modules. Prove the extension pattern.
 
 **Backend:**
-- [ ] Create `cloudbox-notes` crate (CRUD, markdown processing, full-text search)
-- [ ] Create `cloudbox-contacts` crate (CRUD, alias resolution, dedup)
+- [ ] Create `silo-notes` crate (CRUD, markdown processing, full-text search)
+- [ ] Create `silo-contacts` crate (CRUD, alias resolution, dedup)
 - [ ] Add migrations: `011_notes.sql`, `013_contacts.sql`
 - [ ] Add route files: `routes/notes.rs`, `routes/contacts.rs`
 - [ ] Add new routes to main.rs via `.nest()`
@@ -687,8 +687,8 @@ dependencies:
 **Goal:** Add calendar. Stand up the knowledge graph. Enable cross-module search. Home feed becomes real.
 
 **Backend:**
-- [ ] Create `cloudbox-calendar` crate (event CRUD, basic CalDAV)
-- [ ] Create `cloudbox-graph` crate (node/edge CRUD, entity extraction)
+- [ ] Create `silo-calendar` crate (event CRUD, basic CalDAV)
+- [ ] Create `silo-graph` crate (node/edge CRUD, entity extraction)
 - [ ] Add migrations: `012_calendar.sql`, `014_graph.sql`
 - [ ] Add route files: `routes/calendar.rs`, `routes/graph.rs`
 - [ ] Background job: create graph nodes for existing photos (EXIF, faces, tags)
@@ -710,7 +710,7 @@ dependencies:
 **Goal:** Add email. Add AI assistant. This is where cross-module intelligence becomes tangible.
 
 **Backend:**
-- [ ] Create `cloudbox-mail` crate (IMAP sync, email parsing, SMTP sending)
+- [ ] Create `silo-mail` crate (IMAP sync, email parsing, SMTP sending)
 - [ ] Add migration: `016_mail_cache.sql`
 - [ ] Add route file: `routes/mail.rs`
 - [ ] Background job: IMAP sync (polling or IDLE)
@@ -733,7 +733,7 @@ dependencies:
 **Goal:** Add Matrix messaging + SMS fallback. Complete the communication stack.
 
 **Backend:**
-- [ ] Create `cloudbox-messaging` crate (Matrix SDK integration)
+- [ ] Create `silo-messaging` crate (Matrix SDK integration)
 - [ ] Add migration: `015_messages.sql`
 - [ ] Add route file: `routes/messages.rs`
 - [ ] Matrix homeserver connection (or embed Conduit for self-contained setup)
@@ -840,7 +840,7 @@ RCS is locked down by Google — no third-party app can access it (confirmed: Te
 
 ## Open Questions
 
-- [ ] **Name** — cloudbox needs a new name that reflects the super-app vision. Current candidates: Hearth, Commons, Plaza, Agora, Vela, Sola. Needs to feel warm and personal, not corporate or techy.
+- [ ] **Name** — silo needs a new name that reflects the super-app vision. Current candidates: Hearth, Commons, Plaza, Agora, Vela, Sola. Needs to feel warm and personal, not corporate or techy.
 - [ ] **Matrix homeserver** — embed Conduit (lightweight Rust homeserver) for fully self-contained setup, or require external homeserver (Synapse/Conduit/Dendrite)?
 - [ ] **CalDAV scope** — full CalDAV server (so external clients can sync) or just CalDAV client (sync from external server)? Probably start with server so the app is self-contained.
 - [ ] **Email credential storage** — how to securely store IMAP/SMTP passwords. Encrypted at rest with user's master password? Separate key derivation?

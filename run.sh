@@ -6,5 +6,5 @@ cd "$(dirname "$0")"
 docker compose up -d --wait 2>/dev/null || true
 
 # Build release binary if needed, then run
-cargo build --features ml --release
-exec target/release/cloudbox
+cargo build --release
+exec target/release/silo

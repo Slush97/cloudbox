@@ -76,8 +76,8 @@ async fn list_files(
     _claims: Claims,
     State(state): State<AppState>,
     Query(params): Query<ListParams>,
-) -> Result<Json<Vec<cloudbox_db::files::File>>, AppError> {
-    let files = cloudbox_db::files::list_children(&state.db, params.parent_id).await?;
+) -> Result<Json<Vec<silo_db::files::File>>, AppError> {
+    let files = silo_db::files::list_children(&state.db, params.parent_id).await?;
     Ok(Json(files))
 }
 
@@ -85,7 +85,7 @@ async fn upload(
     _claims: Claims,
     State(state): State<AppState>,
     mut multipart: Multipart,
-) -> Result<Json<cloudbox_db::files::File>, AppError> {
+) -> Result<Json<silo_db::files::File>, AppError> {
     let mut filename = String::new();
     let mut data = bytes::Bytes::new();
     let mut parent_id: Option<Uuid> = None;
@@ -123,7 +123,7 @@ async fn upload(
         .first()
         .map(|m| m.to_string());
 
-    let file = cloudbox_db::files::insert(
+    let file = silo_db::files::insert(
         &state.db,
         id,
         &filename,
@@ -146,11 +146,11 @@ async fn create_folder(
     _claims: Claims,
     State(state): State<AppState>,
     Json(req): Json<CreateFolderReq>,
-) -> Result<Json<cloudbox_db::files::File>, AppError> {
+) -> Result<Json<silo_db::files::File>, AppError> {
     let name = sanitize_filename(&req.name)?;
     let id = Uuid::now_v7();
     let folder =
-        cloudbox_db::files::create_folder(&state.db, id, &name, req.parent_id).await?;
+        silo_db::files::create_folder(&state.db, id, &name, req.parent_id).await?;
     Ok(Json(folder))
 }
 
@@ -164,9 +164,9 @@ async fn search_files(
     _claims: Claims,
     State(state): State<AppState>,
     Query(params): Query<SearchParams>,
-) -> Result<Json<Vec<cloudbox_db::files::File>>, AppError> {
+) -> Result<Json<Vec<silo_db::files::File>>, AppError> {
     let limit = params.limit.unwrap_or(50).min(MAX_QUERY_LIMIT);
-    let files = cloudbox_db::files::search_by_name(&state.db, &params.q, limit).await?;
+    let files = silo_db::files::search_by_name(&state.db, &params.q, limit).await?;
     Ok(Json(files))
 }
 
@@ -175,7 +175,7 @@ async fn download(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
 ) -> Result<Body, AppError> {
-    let file = cloudbox_db::files::get(&state.db, id)
+    let file = silo_db::files::get(&state.db, id)
         .await?
         .ok_or(AppError::NotFound)?;
 
@@ -194,9 +194,9 @@ async fn rename_file(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
     Json(req): Json<RenameReq>,
-) -> Result<Json<cloudbox_db::files::File>, AppError> {
+) -> Result<Json<silo_db::files::File>, AppError> {
     let name = sanitize_filename(&req.name)?;
-    let file = cloudbox_db::files::rename(&state.db, id, &name).await?;
+    let file = silo_db::files::rename(&state.db, id, &name).await?;
     Ok(Json(file))
 }
 
@@ -210,8 +210,8 @@ async fn move_file(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
     Json(req): Json<MoveReq>,
-) -> Result<Json<cloudbox_db::files::File>, AppError> {
-    let file = cloudbox_db::files::move_file(&state.db, id, req.parent_id).await?;
+) -> Result<Json<silo_db::files::File>, AppError> {
+    let file = silo_db::files::move_file(&state.db, id, req.parent_id).await?;
     Ok(Json(file))
 }
 
@@ -219,8 +219,8 @@ async fn get_ancestors(
     _claims: Claims,
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
-) -> Result<Json<Vec<cloudbox_db::files::File>>, AppError> {
-    let ancestors = cloudbox_db::files::get_ancestors(&state.db, id).await?;
+) -> Result<Json<Vec<silo_db::files::File>>, AppError> {
+    let ancestors = silo_db::files::get_ancestors(&state.db, id).await?;
     Ok(Json(ancestors))
 }
 
@@ -230,7 +230,7 @@ async fn delete_file(
     Path(id): Path<Uuid>,
 ) -> Result<(), AppError> {
     // Soft delete — files are cleaned up when trash expires
-    cloudbox_db::files::soft_delete(&state.db, id).await?;
+    silo_db::files::soft_delete(&state.db, id).await?;
     Ok(())
 }
 
@@ -238,8 +238,8 @@ async fn toggle_file_favorite(
     _claims: Claims,
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
-) -> Result<Json<cloudbox_db::files::File>, AppError> {
-    let file = cloudbox_db::files::toggle_favorite(&state.db, id).await?;
+) -> Result<Json<silo_db::files::File>, AppError> {
+    let file = silo_db::files::toggle_favorite(&state.db, id).await?;
     Ok(Json(file))
 }
 
@@ -265,7 +265,7 @@ async fn create_share(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
     Json(req): Json<CreateShareReq>,
-) -> Result<Json<cloudbox_db::shares::ShareLink>, AppError> {
+) -> Result<Json<silo_db::shares::ShareLink>, AppError> {
     let share_id = Uuid::now_v7();
     let token = generate_share_token();
     let expires_at = req
@@ -273,7 +273,7 @@ async fn create_share(
         .map(|h| chrono::Utc::now() + chrono::Duration::hours(h));
 
     let link =
-        cloudbox_db::shares::create(&state.db, share_id, id, &token, expires_at).await?;
+        silo_db::shares::create(&state.db, share_id, id, &token, expires_at).await?;
 
     Ok(Json(link))
 }
@@ -282,8 +282,8 @@ async fn list_shares(
     _claims: Claims,
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
-) -> Result<Json<Vec<cloudbox_db::shares::ShareLink>>, AppError> {
-    let links = cloudbox_db::shares::list_for_file(&state.db, id).await?;
+) -> Result<Json<Vec<silo_db::shares::ShareLink>>, AppError> {
+    let links = silo_db::shares::list_for_file(&state.db, id).await?;
     Ok(Json(links))
 }
 
@@ -292,7 +292,7 @@ async fn delete_share(
     State(state): State<AppState>,
     Path((_id, share_id)): Path<(Uuid, Uuid)>,
 ) -> Result<(), AppError> {
-    cloudbox_db::shares::delete(&state.db, share_id).await?;
+    silo_db::shares::delete(&state.db, share_id).await?;
     Ok(())
 }
 
@@ -301,11 +301,11 @@ pub async fn download_shared(
     State(state): State<AppState>,
     Path(token): Path<String>,
 ) -> Result<Body, AppError> {
-    let link = cloudbox_db::shares::get_by_token(&state.db, &token)
+    let link = silo_db::shares::get_by_token(&state.db, &token)
         .await?
         .ok_or(AppError::NotFound)?;
 
-    let file = cloudbox_db::files::get(&state.db, link.file_id)
+    let file = silo_db::files::get(&state.db, link.file_id)
         .await?
         .ok_or(AppError::NotFound)?;
 

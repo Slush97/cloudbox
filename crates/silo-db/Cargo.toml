@@ -1,5 +1,5 @@
 [package]
-name = "cloudbox-db"
+name = "silo-db"
 version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
@@ -9,7 +9,7 @@ description = "Database layer — Postgres via sqlx"
 
 [dependencies]
 argon2.workspace = true
-cloudbox-media = { path = "../cloudbox-media" }
+silo-media = { path = "../silo-media" }
 sqlx.workspace = true
 uuid.workspace = true
 chrono.workspace = true

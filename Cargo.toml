@@ -1,10 +1,10 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/cloudbox-server",
-    "crates/cloudbox-db",
-    "crates/cloudbox-media",
-    "crates/cloudbox-sync",
+    "crates/silo-server",
+    "crates/silo-db",
+    "crates/silo-media",
+    "crates/silo-sync",
 ]
 
 [workspace.package]

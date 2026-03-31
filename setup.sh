@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-CLOUDBOX_DIR="$(cd "$(dirname "$0")" && pwd)"
-DB_USER="cloudbox"
-DB_PASS="cloudbox"
-DB_NAME="cloudbox"
+SILO_DIR="$(cd "$(dirname "$0")" && pwd)"
+DB_USER="silo"
+DB_PASS="silo"
+DB_NAME="silo"
 
-echo "=== Cloudbox Setup ==="
+echo "=== Silo Setup ==="
 echo ""
 
 # ── 1. Postgres ──────────────────────────────────────────────────
@@ -44,7 +44,7 @@ if [ "$HAS_VECTOR" != "1" ]; then
     cd "$TMPDIR/pgvector"
     make
     sudo make install
-    cd "$CLOUDBOX_DIR"
+    cd "$SILO_DIR"
     rm -rf "$TMPDIR"
     echo "  pgvector installed."
 else
@@ -79,15 +79,15 @@ echo "  pgvector extension enabled."
 
 echo "[4/7] Setting up .env..."
 
-ENV_FILE="$CLOUDBOX_DIR/.env"
+ENV_FILE="$SILO_DIR/.env"
 if [ ! -f "$ENV_FILE" ]; then
     JWT_SECRET=$(head -c 32 /dev/urandom | base64 | tr -d '/+=' | head -c 32)
     cat > "$ENV_FILE" <<ENVEOF
 DATABASE_URL=postgres://$DB_USER:$DB_PASS@localhost:5432/$DB_NAME
 JWT_SECRET=$JWT_SECRET
-STORAGE_PATH=$CLOUDBOX_DIR/data
-CLOUDBOX_HOST=0.0.0.0
-CLOUDBOX_PORT=3000
+STORAGE_PATH=$SILO_DIR/data
+SILO_HOST=0.0.0.0
+SILO_PORT=3000
 ENVEOF
     chmod 600 "$ENV_FILE"
     echo "  Created .env with random JWT secret."
@@ -97,8 +97,8 @@ fi
 
 # ── 5. Build ─────────────────────────────────────────────────────
 
-echo "[5/7] Building cloudbox..."
-cd "$CLOUDBOX_DIR"
+echo "[5/7] Building silo..."
+cd "$SILO_DIR"
 cargo build --release 2>&1 | tail -3
 echo "  Build complete."
 
@@ -125,10 +125,10 @@ echo ""
 echo "[7/7] Setup complete!"
 echo ""
 echo "  Start the server:"
-echo "    cargo run --release --bin cloudbox"
+echo "    cargo run --release --bin silo"
 echo ""
 echo "  Or run directly:"
-echo "    $CLOUDBOX_DIR/target/release/cloudbox"
+echo "    $SILO_DIR/target/release/silo"
 echo ""
 echo "  Test it:"
 echo "    curl -s localhost:3000/health"

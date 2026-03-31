@@ -9,7 +9,7 @@ pub fn router() -> Router<AppState> {
 async fn get_stats(
     _claims: Claims,
     State(state): State<AppState>,
-) -> Result<Json<cloudbox_db::stats::Stats>, AppError> {
-    let stats = cloudbox_db::stats::get(&state.db, &state.storage_path).await?;
+) -> Result<Json<silo_db::stats::Stats>, AppError> {
+    let stats = silo_db::stats::get(&state.db, &state.storage_path).await?;
     Ok(Json(stats))
 }

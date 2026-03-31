@@ -24,8 +24,8 @@ pub fn router() -> Router<AppState> {
 async fn list_albums(
     _claims: Claims,
     State(state): State<AppState>,
-) -> Result<Json<Vec<cloudbox_db::albums::AlbumWithCount>>, AppError> {
-    let albums = cloudbox_db::albums::list(&state.db).await?;
+) -> Result<Json<Vec<silo_db::albums::AlbumWithCount>>, AppError> {
+    let albums = silo_db::albums::list(&state.db).await?;
     Ok(Json(albums))
 }
 
@@ -38,9 +38,9 @@ async fn create_album(
     _claims: Claims,
     State(state): State<AppState>,
     Json(req): Json<CreateAlbumReq>,
-) -> Result<Json<cloudbox_db::albums::Album>, AppError> {
+) -> Result<Json<silo_db::albums::Album>, AppError> {
     let id = Uuid::now_v7();
-    let album = cloudbox_db::albums::create(&state.db, id, &req.name).await?;
+    let album = silo_db::albums::create(&state.db, id, &req.name).await?;
     Ok(Json(album))
 }
 
@@ -48,8 +48,8 @@ async fn get_album(
     _claims: Claims,
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
-) -> Result<Json<cloudbox_db::albums::Album>, AppError> {
-    cloudbox_db::albums::get(&state.db, id)
+) -> Result<Json<silo_db::albums::Album>, AppError> {
+    silo_db::albums::get(&state.db, id)
         .await?
         .ok_or(AppError::NotFound)
         .map(Json)
@@ -65,8 +65,8 @@ async fn update_album(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
     Json(req): Json<UpdateAlbumReq>,
-) -> Result<Json<cloudbox_db::albums::Album>, AppError> {
-    let album = cloudbox_db::albums::update(&state.db, id, &req.name).await?;
+) -> Result<Json<silo_db::albums::Album>, AppError> {
+    let album = silo_db::albums::update(&state.db, id, &req.name).await?;
     Ok(Json(album))
 }
 
@@ -75,7 +75,7 @@ async fn delete_album(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
 ) -> Result<(), AppError> {
-    cloudbox_db::albums::delete(&state.db, id).await?;
+    silo_db::albums::delete(&state.db, id).await?;
     Ok(())
 }
 
@@ -90,9 +90,9 @@ async fn list_album_photos(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
     Query(params): Query<AlbumPhotosParams>,
-) -> Result<Json<Vec<cloudbox_db::photos::Photo>>, AppError> {
+) -> Result<Json<Vec<silo_db::photos::Photo>>, AppError> {
     let limit = params.limit.unwrap_or(50).min(500);
-    let photos = cloudbox_db::albums::list_photos(&state.db, id, params.cursor, limit).await?;
+    let photos = silo_db::albums::list_photos(&state.db, id, params.cursor, limit).await?;
     Ok(Json(photos))
 }
 
@@ -110,7 +110,7 @@ async fn add_photos(
     if req.photo_ids.len() > 500 {
         return Err(AppError::BadRequest("max 500 photos per request".into()));
     }
-    let added = cloudbox_db::albums::add_photos(&state.db, id, &req.photo_ids).await?;
+    let added = silo_db::albums::add_photos(&state.db, id, &req.photo_ids).await?;
     Ok(Json(added))
 }
 
@@ -119,7 +119,7 @@ async fn remove_photo(
     State(state): State<AppState>,
     Path((id, photo_id)): Path<(Uuid, Uuid)>,
 ) -> Result<(), AppError> {
-    cloudbox_db::albums::remove_photo(&state.db, id, photo_id).await?;
+    silo_db::albums::remove_photo(&state.db, id, photo_id).await?;
     Ok(())
 }
 
@@ -133,7 +133,7 @@ async fn set_cover(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
     Json(req): Json<SetCoverReq>,
-) -> Result<Json<cloudbox_db::albums::Album>, AppError> {
-    let album = cloudbox_db::albums::set_cover(&state.db, id, req.photo_id).await?;
+) -> Result<Json<silo_db::albums::Album>, AppError> {
+    let album = silo_db::albums::set_cover(&state.db, id, req.photo_id).await?;
     Ok(Json(album))
 }

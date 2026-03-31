@@ -21,7 +21,7 @@ async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
 
     tracing_subscriber::registry()
-        .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| "cloudbox=debug,info".into()))
+        .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| "silo=debug,info".into()))
         .with(tracing_subscriber::fmt::layer())
         .init();
 
@@ -54,7 +54,7 @@ async fn main() -> anyhow::Result<()> {
                 tokio::time::sleep(std::time::Duration::from_secs(3600)).await;
                 tracing::info!("running scheduled cleanup");
                 routes::trash::cleanup_expired_trash(&trash_state, 30).await;
-                cloudbox_db::pairing::cleanup_expired(&trash_state.db).await;
+                silo_db::pairing::cleanup_expired(&trash_state.db).await;
             }
         });
     }

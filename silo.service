@@ -1,17 +1,17 @@
 [Unit]
-Description=Cloudbox server
+Description=Silo server
 After=network.target docker.service
 Wants=docker.service
 
 [Service]
 Type=simple
 User=esoc
-WorkingDirectory=/home/esoc/cloudbox
+WorkingDirectory=/home/esoc/silo
 ExecStartPre=/usr/bin/docker compose up -d --wait
-ExecStart=/home/esoc/cloudbox/target/release/cloudbox
+ExecStart=/home/esoc/silo/target/release/silo
 Restart=on-failure
 RestartSec=5
-EnvironmentFile=/home/esoc/cloudbox/.env
+EnvironmentFile=/home/esoc/silo/.env
 
 [Install]
 WantedBy=multi-user.target

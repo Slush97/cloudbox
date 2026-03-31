@@ -19,7 +19,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     sqlx::migrate!("../../migrations").run(&pool).await?;
 
-    let user = cloudbox_db::users::create(&pool, username, password).await?;
+    let user = silo_db::users::create(&pool, username, password).await?;
     println!("Created user: {} (id: {})", user.username, user.id);
 
     Ok(())

@@ -1,5 +1,5 @@
 [package]
-name = "cloudbox-server"
+name = "silo-server"
 version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
@@ -8,7 +8,7 @@ license.workspace = true
 description = "Self-hosted cloud API server"
 
 [[bin]]
-name = "cloudbox"
+name = "silo"
 path = "src/main.rs"
 
 [[bin]]
@@ -16,9 +16,9 @@ name = "seed-user"
 path = "src/bin/seed_user.rs"
 
 [dependencies]
-cloudbox-db = { path = "../cloudbox-db" }
-cloudbox-media = { path = "../cloudbox-media" }
-cloudbox-sync = { path = "../cloudbox-sync" }
+silo-db = { path = "../silo-db" }
+silo-media = { path = "../silo-media" }
+silo-sync = { path = "../silo-sync" }
 
 axum = { workspace = true, features = ["macros"] }
 tokio.workspace = true

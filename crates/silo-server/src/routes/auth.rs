@@ -55,7 +55,7 @@ struct AuthStatus {
 }
 
 async fn status(State(state): State<AppState>) -> Result<Json<AuthStatus>, AppError> {
-    let user_count = cloudbox_db::users::count(&state.db).await?;
+    let user_count = silo_db::users::count(&state.db).await?;
     Ok(Json(AuthStatus {
         needs_setup: user_count == 0,
     }))
@@ -67,12 +67,12 @@ async fn setup(
 ) -> Result<Json<LoginResponse>, AppError> {
     check_login_rate_limit()?;
 
-    let user_count = cloudbox_db::users::count(&state.db).await?;
+    let user_count = silo_db::users::count(&state.db).await?;
     if user_count > 0 {
         return Err(AppError::BadRequest("setup already completed".into()));
     }
 
-    cloudbox_db::users::create(&state.db, &req.username, &req.password)
+    silo_db::users::create(&state.db, &req.username, &req.password)
         .await
         .map_err(|e| AppError::BadRequest(e.to_string()))?;
 
@@ -88,7 +88,7 @@ async fn login(
 ) -> Result<Json<LoginResponse>, AppError> {
     check_login_rate_limit()?;
 
-    let user = cloudbox_db::users::verify(&state.db, &req.username, &req.password).await?;
+    let user = silo_db::users::verify(&state.db, &req.username, &req.password).await?;
 
     if user.is_none() {
         tracing::warn!(username = req.username, "failed login attempt");
@@ -118,7 +118,7 @@ async fn generate_pair_code(
     State(state): State<AppState>,
     claims: Claims,
 ) -> Result<Json<PairResponse>, AppError> {
-    let user = cloudbox_db::users::get_by_username(&state.db, &claims.sub)
+    let user = silo_db::users::get_by_username(&state.db, &claims.sub)
         .await?
         .ok_or(AppError::Unauthorized)?;
 
@@ -130,7 +130,7 @@ async fn generate_pair_code(
 
     let expires_at = chrono::Utc::now() + chrono::Duration::minutes(5);
 
-    cloudbox_db::pairing::create(&state.db, user.id, &code, expires_at).await?;
+    silo_db::pairing::create(&state.db, user.id, &code, expires_at).await?;
 
     tracing::info!(username = claims.sub, "pairing code generated");
     Ok(Json(PairResponse { code, expires_at }))
@@ -143,11 +143,11 @@ async fn claim_pair_code(
 ) -> Result<Json<LoginResponse>, AppError> {
     check_login_rate_limit()?;
 
-    let pairing = cloudbox_db::pairing::claim(&state.db, &req.code)
+    let pairing = silo_db::pairing::claim(&state.db, &req.code)
         .await?
         .ok_or(AppError::Unauthorized)?;
 
-    let user = cloudbox_db::users::get_by_id(&state.db, pairing.user_id)
+    let user = silo_db::users::get_by_id(&state.db, pairing.user_id)
         .await?
         .ok_or(AppError::Unauthorized)?;
 

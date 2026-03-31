@@ -23,7 +23,7 @@ pub fn router() -> Router<AppState> {
 }
 
 async fn resolve_user_id(state: &AppState, claims: &Claims) -> Result<Uuid, AppError> {
-    let user = cloudbox_db::users::get_by_username(&state.db, &claims.sub)
+    let user = silo_db::users::get_by_username(&state.db, &claims.sub)
         .await?
         .ok_or(AppError::Unauthorized)?;
     Ok(user.id)
@@ -40,10 +40,10 @@ async fn list_notes(
     claims: Claims,
     State(state): State<AppState>,
     Query(params): Query<ListParams>,
-) -> Result<Json<Vec<cloudbox_db::notes::Note>>, AppError> {
+) -> Result<Json<Vec<silo_db::notes::Note>>, AppError> {
     let user_id = resolve_user_id(&state, &claims).await?;
     let limit = params.limit.unwrap_or(50).min(200);
-    let notes = cloudbox_db::notes::list(
+    let notes = silo_db::notes::list(
         &state.db,
         user_id,
         params.cursor,
@@ -64,10 +64,10 @@ async fn create_note(
     claims: Claims,
     State(state): State<AppState>,
     Json(req): Json<CreateNoteReq>,
-) -> Result<Json<cloudbox_db::notes::Note>, AppError> {
+) -> Result<Json<silo_db::notes::Note>, AppError> {
     let user_id = resolve_user_id(&state, &claims).await?;
     let id = Uuid::now_v7();
-    let note = cloudbox_db::notes::create(
+    let note = silo_db::notes::create(
         &state.db,
         id,
         user_id,
@@ -82,9 +82,9 @@ async fn get_note(
     claims: Claims,
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
-) -> Result<Json<cloudbox_db::notes::Note>, AppError> {
+) -> Result<Json<silo_db::notes::Note>, AppError> {
     let user_id = resolve_user_id(&state, &claims).await?;
-    cloudbox_db::notes::get(&state.db, id, user_id)
+    silo_db::notes::get(&state.db, id, user_id)
         .await?
         .ok_or(AppError::NotFound)
         .map(Json)
@@ -101,9 +101,9 @@ async fn update_note(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
     Json(req): Json<UpdateNoteReq>,
-) -> Result<Json<cloudbox_db::notes::Note>, AppError> {
+) -> Result<Json<silo_db::notes::Note>, AppError> {
     let user_id = resolve_user_id(&state, &claims).await?;
-    cloudbox_db::notes::update(&state.db, id, user_id, &req.title, &req.content)
+    silo_db::notes::update(&state.db, id, user_id, &req.title, &req.content)
         .await?
         .ok_or(AppError::NotFound)
         .map(Json)
@@ -115,7 +115,7 @@ async fn delete_note(
     Path(id): Path<Uuid>,
 ) -> Result<(), AppError> {
     let user_id = resolve_user_id(&state, &claims).await?;
-    cloudbox_db::notes::soft_delete(&state.db, id, user_id).await?;
+    silo_db::notes::soft_delete(&state.db, id, user_id).await?;
     Ok(())
 }
 
@@ -123,9 +123,9 @@ async fn toggle_pin(
     claims: Claims,
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
-) -> Result<Json<cloudbox_db::notes::Note>, AppError> {
+) -> Result<Json<silo_db::notes::Note>, AppError> {
     let user_id = resolve_user_id(&state, &claims).await?;
-    cloudbox_db::notes::toggle_pin(&state.db, id, user_id)
+    silo_db::notes::toggle_pin(&state.db, id, user_id)
         .await?
         .ok_or(AppError::NotFound)
         .map(Json)
@@ -135,9 +135,9 @@ async fn toggle_favorite(
     claims: Claims,
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
-) -> Result<Json<cloudbox_db::notes::Note>, AppError> {
+) -> Result<Json<silo_db::notes::Note>, AppError> {
     let user_id = resolve_user_id(&state, &claims).await?;
-    cloudbox_db::notes::toggle_favorite(&state.db, id, user_id)
+    silo_db::notes::toggle_favorite(&state.db, id, user_id)
         .await?
         .ok_or(AppError::NotFound)
         .map(Json)
@@ -147,8 +147,8 @@ async fn list_tags(
     _claims: Claims,
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
-) -> Result<Json<Vec<cloudbox_db::notes::NoteTag>>, AppError> {
-    let tags = cloudbox_db::notes::get_tags(&state.db, id).await?;
+) -> Result<Json<Vec<silo_db::notes::NoteTag>>, AppError> {
+    let tags = silo_db::notes::get_tags(&state.db, id).await?;
     Ok(Json(tags))
 }
 
@@ -163,7 +163,7 @@ async fn add_tag(
     Path(id): Path<Uuid>,
     Json(req): Json<AddTagReq>,
 ) -> Result<(), AppError> {
-    cloudbox_db::notes::add_tag(&state.db, id, &req.name).await?;
+    silo_db::notes::add_tag(&state.db, id, &req.name).await?;
     Ok(())
 }
 
@@ -172,6 +172,6 @@ async fn remove_tag(
     State(state): State<AppState>,
     Path((id, tag_id)): Path<(Uuid, i32)>,
 ) -> Result<(), AppError> {
-    cloudbox_db::notes::remove_tag(&state.db, id, tag_id).await?;
+    silo_db::notes::remove_tag(&state.db, id, tag_id).await?;
     Ok(())
 }

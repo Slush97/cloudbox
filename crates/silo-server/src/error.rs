@@ -26,7 +26,7 @@ pub enum AppError {
     Io(#[from] std::io::Error),
 
     #[error(transparent)]
-    Media(#[from] cloudbox_media::Error),
+    Media(#[from] silo_media::Error),
 
     #[error("multipart error: {0}")]
     Multipart(#[from] axum::extract::multipart::MultipartError),

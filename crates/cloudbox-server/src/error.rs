@@ -28,9 +28,6 @@ pub enum AppError {
     #[error(transparent)]
     Media(#[from] cloudbox_media::Error),
 
-    #[error(transparent)]
-    Vision(#[from] cloudbox_vision::VisionError),
-
     #[error("multipart error: {0}")]
     Multipart(#[from] axum::extract::multipart::MultipartError),
 

@@ -24,14 +24,9 @@ pub fn router() -> Router<AppState> {
         .route("/{id}", delete(delete_photo))
         .route("/{id}/favorite", put(toggle_favorite))
         .route("/{id}/stream", get(stream_video))
-        .route("/search", get(search))
         .route("/{id}/tags", get(list_tags))
         .route("/{id}/tags", post(add_tag))
         .route("/{id}/tags/{tag_id}", delete(remove_tag))
-        .route("/faces", get(list_face_clusters))
-        .route("/faces/recluster", post(recluster_faces))
-        .route("/faces/{cluster_id}/photos", get(cluster_photos))
-        .route("/faces/{cluster_id}/label", put(set_cluster_label))
 }
 
 #[derive(Deserialize)]
@@ -121,17 +116,6 @@ async fn upload(
             "video", video_meta.duration_secs, video_meta.codec.as_deref(),
         ).await?;
 
-        // 6v. Queue vision on extracted frame for auto-tagging + CLIP
-        let frame_data = cloudbox_media::video::extract_frame(&dest, duration * 0.1).await;
-        if let Ok(frame_bytes) = frame_data {
-            let frame_path = dest.with_extension("_frame.jpg");
-            tokio::fs::write(&frame_path, &frame_bytes).await?;
-            cloudbox_vision::queue_photo(
-                id, frame_path,
-                state.face_pipeline.clone(), state.classifier.clone(), state.db.clone(),
-            );
-        }
-
         Ok(Json(photo))
     } else {
         // ---- Photo upload flow ----
@@ -162,12 +146,6 @@ async fn upload(
             &state.db, id, &filename, &storage_key, phash, meta, file_size,
             "photo", None, None,
         ).await?;
-
-        // 6p. Queue vision processing
-        cloudbox_vision::queue_photo(
-            id, dest,
-            state.face_pipeline.clone(), state.classifier.clone(), state.db.clone(),
-        );
 
         Ok(Json(photo))
     }
@@ -274,24 +252,6 @@ fn parse_range(range: &str, file_len: u64) -> Option<(u64, u64)> {
         return None;
     }
     Some((start, end))
-}
-
-#[derive(Deserialize)]
-struct SearchParams {
-    q: String,
-    limit: Option<i64>,
-}
-
-async fn search(
-    _claims: Claims,
-    State(state): State<AppState>,
-    Query(params): Query<SearchParams>,
-) -> Result<Json<Vec<cloudbox_db::photos::Photo>>, AppError> {
-    // Encode query text with CLIP text encoder, then cosine similarity search via pgvector
-    let embedding = cloudbox_vision::clip::encode_text(&params.q)?;
-    let limit = params.limit.unwrap_or(20).min(500);
-    let photos = cloudbox_db::photos::search_by_embedding(&state.db, &embedding, limit).await?;
-    Ok(Json(photos))
 }
 
 async fn delete_photo(
@@ -411,52 +371,4 @@ async fn remove_tag(
 ) -> Result<(), AppError> {
     cloudbox_db::tags::remove_tag(&state.db, id, tag_id).await?;
     Ok(())
-}
-
-// ---- Face clusters ----
-
-async fn list_face_clusters(
-    _claims: Claims,
-    State(state): State<AppState>,
-) -> Result<Json<Vec<cloudbox_db::faces::FaceCluster>>, AppError> {
-    let clusters = cloudbox_db::faces::list_clusters(&state.db).await?;
-    Ok(Json(clusters))
-}
-
-async fn cluster_photos(
-    _claims: Claims,
-    State(state): State<AppState>,
-    Path(cluster_id): Path<i32>,
-) -> Result<Json<Vec<cloudbox_db::photos::Photo>>, AppError> {
-    let photos = cloudbox_db::faces::photos_by_cluster(&state.db, cluster_id).await?;
-    Ok(Json(photos))
-}
-
-#[derive(Deserialize)]
-struct LabelRequest {
-    label: String,
-}
-
-async fn set_cluster_label(
-    _claims: Claims,
-    State(state): State<AppState>,
-    Path(cluster_id): Path<i32>,
-    Json(req): Json<LabelRequest>,
-) -> Result<(), AppError> {
-    cloudbox_db::faces::set_cluster_label(&state.db, cluster_id, &req.label).await?;
-    Ok(())
-}
-
-async fn recluster_faces(
-    _claims: Claims,
-    State(state): State<AppState>,
-) -> Result<Json<cloudbox_vision::faces::ReclusterResult>, AppError> {
-    let result = cloudbox_vision::faces::recluster(&state.db).await?;
-    tracing::info!(
-        total = result.total_faces,
-        clusters = result.clusters,
-        noise = result.noise,
-        "face re-clustering complete"
-    );
-    Ok(Json(result))
 }

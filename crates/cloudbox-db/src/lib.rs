@@ -1,6 +1,6 @@
 pub mod albums;
-pub mod faces;
 pub mod files;
+pub mod notes;
 pub mod pairing;
 pub mod photos;
 pub mod shares;

@@ -4,7 +4,6 @@ members = [
     "crates/cloudbox-server",
     "crates/cloudbox-db",
     "crates/cloudbox-media",
-    "crates/cloudbox-vision",
     "crates/cloudbox-sync",
 ]
 
@@ -51,12 +50,6 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 dotenvy = "0.15"
 rand = "0.8"
-
-# ML pipeline crates (vendored from esolearn)
-scry-learn = { path = "crates/scry-learn" }
-scry-llm = { path = "crates/scry-llm" }
-scry-vision = { path = "crates/scry-vision", default-features = false }
-scry-gpu = { path = "crates/scry-gpu" }
 
 [workspace.lints.clippy]
 pedantic = { level = "warn", priority = -1 }

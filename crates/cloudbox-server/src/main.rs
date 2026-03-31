@@ -36,6 +36,7 @@ async fn main() -> anyhow::Result<()> {
         .nest("/api/v1/photos", routes::photos::router())
         .nest("/api/v1/files", routes::files::router())
         .nest("/api/v1/albums", routes::albums::router())
+        .nest("/api/v1/notes", routes::notes::router())
         .nest("/api/v1/trash", routes::trash::router())
         .nest("/api/v1/stats", routes::stats::router())
         .route("/pair", get(routes::pair::pair_page))

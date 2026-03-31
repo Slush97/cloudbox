@@ -1,6 +1,7 @@
 pub mod albums;
 pub mod auth;
 pub mod files;
+pub mod notes;
 pub mod pair;
 pub mod photos;
 pub mod stats;

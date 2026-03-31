@@ -15,14 +15,9 @@ path = "src/main.rs"
 name = "seed-user"
 path = "src/bin/seed_user.rs"
 
-[features]
-default = []
-ml = ["cloudbox-vision/ml"]
-
 [dependencies]
 cloudbox-db = { path = "../cloudbox-db" }
 cloudbox-media = { path = "../cloudbox-media" }
-cloudbox-vision = { path = "../cloudbox-vision" }
 cloudbox-sync = { path = "../cloudbox-sync" }
 
 axum = { workspace = true, features = ["macros"] }

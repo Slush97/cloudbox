@@ -9,7 +9,6 @@ pub struct Config {
     pub cors_origin: Option<String>,
     pub s3_endpoint: Option<String>,
     pub s3_bucket: Option<String>,
-    pub models_path: Option<String>,
     pub max_upload_bytes: usize,
 }
 
@@ -41,7 +40,6 @@ impl Config {
             cors_origin: env::var("CORS_ORIGIN").ok(),
             s3_endpoint: env::var("S3_ENDPOINT").ok(),
             s3_bucket: env::var("S3_BUCKET").ok(),
-            models_path: env::var("MODELS_PATH").ok(),
             max_upload_bytes,
         })
     }

@@ -243,21 +243,3 @@ pub async fn list_locations(pool: &PgPool) -> Result<Vec<PhotoLocation>, sqlx::E
     .await
 }
 
-pub async fn search_by_embedding(
-    pool: &PgPool,
-    embedding: &[f32],
-    limit: i64,
-) -> Result<Vec<Photo>, sqlx::Error> {
-    // pgvector cosine distance search
-    sqlx::query_as(
-        r#"SELECT p.* FROM photos p
-           JOIN photo_embeddings e ON e.photo_id = p.id
-           WHERE p.deleted_at IS NULL
-           ORDER BY e.clip_embedding <=> $1::vector
-           LIMIT $2"#,
-    )
-    .bind(serde_json::to_string(embedding).unwrap())
-    .bind(limit)
-    .fetch_all(pool)
-    .await
-}

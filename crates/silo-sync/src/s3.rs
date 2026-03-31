@@ -7,7 +7,7 @@ pub struct S3Storage {
 
 impl S3Storage {
     pub async fn new(endpoint: &str, bucket: &str) -> Result<Self, StorageError> {
-        let config = aws_config::from_env()
+        let config = aws_config::defaults(aws_config::BehaviorVersion::latest())
             .endpoint_url(endpoint)
             .load()
             .await;

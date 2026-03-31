@@ -3,8 +3,6 @@ use axum::{
     response::{IntoResponse, Response},
 };
 
-pub type Result<T> = std::result::Result<T, AppError>;
-
 #[derive(Debug, thiserror::Error)]
 pub enum AppError {
     #[error("not found")]

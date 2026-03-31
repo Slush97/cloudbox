@@ -7,8 +7,6 @@ pub struct Config {
     pub jwt_secret: String,
     pub storage_path: String,
     pub cors_origin: Option<String>,
-    pub s3_endpoint: Option<String>,
-    pub s3_bucket: Option<String>,
     pub max_upload_bytes: usize,
 }
 
@@ -38,8 +36,6 @@ impl Config {
             jwt_secret,
             storage_path: env::var("STORAGE_PATH").unwrap_or_else(|_| "./data".into()),
             cors_origin: env::var("CORS_ORIGIN").ok(),
-            s3_endpoint: env::var("S3_ENDPOINT").ok(),
-            s3_bucket: env::var("S3_BUCKET").ok(),
             max_upload_bytes,
         })
     }
